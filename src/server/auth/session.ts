@@ -16,7 +16,7 @@ const sessionLifetimeSeconds = 60 * 60 * 24 * 7;
 
 export interface AuthenticatedUser {
 	id: string;
-	name: string;
+	name: string | null;
 	email: string | null;
 	mobile: string | null;
 	roles: string[];

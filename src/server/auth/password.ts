@@ -15,7 +15,7 @@ function deriveKey(password: string, salt: Buffer): Promise<Buffer> {
 				reject(error);
 				return;
 			}
-
+			
 			resolve(key);
 		});
 	});
