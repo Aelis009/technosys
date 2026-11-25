@@ -62,14 +62,9 @@ export function AppNavLink({
 	const inactiveClasses =
 		"text-slate-600 hover:bg-slate-100 hover:text-slate-900";
 
-	return (
-		<Link
-			to={item.to as LinkProps["to"]}
-			hash={item.hash}
-			aria-current={isActive ? "page" : undefined}
-			onClick={onNavigate}
-			className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
-		>
+	const className = `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`;
+	const content = (
+		<>
 			<span className="inline-flex items-center gap-2.5">
 				{item.icon ? <span aria-hidden="true">{item.icon}</span> : null}
 				<span>{item.label}</span>
@@ -79,7 +74,31 @@ export function AppNavLink({
 					{item.badge}
 				</span>
 			) : null}
+		</>
+	);
+
+	if (item.hash && location.pathname === item.to) {
+		return (
+			<a
+				href={`#${item.hash}`}
+				aria-current={isActive ? "location" : undefined}
+				onClick={onNavigate}
+				className={className}
+			>
+				{content}
+			</a>
+		);
+	}
+
+	return (
+		<Link
+			to={item.to as LinkProps["to"]}
+			hash={item.hash}
+			aria-current={isActive ? "page" : undefined}
+			onClick={onNavigate}
+			className={className}
+		>
+			{content}
 		</Link>
 	);
 }
-

@@ -1,4 +1,4 @@
-import { Link, type LinkProps } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { BrandLogo } from "../ui/BrandLogo";
 
 export function PublicFooter() {
@@ -7,7 +7,7 @@ export function PublicFooter() {
 	return (
 		<footer
 			id="contact"
-			className="border-t border-slate-200 bg-slate-900 text-slate-300"
+			className="scroll-mt-20 border-t border-slate-200 bg-slate-900 text-slate-300"
 		>
 			<div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
 				<div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
@@ -16,8 +16,8 @@ export function PublicFooter() {
 							<BrandLogo subtitle="Home Services Platform" />
 						</div>
 						<p className="text-sm leading-relaxed text-slate-400">
-							Connecting homeowners with verified, skilled service professionals
-							for reliable home maintenance and repairs.
+							A public catalog for home maintenance and repairs, with more tools
+							for customers and technicians on the way.
 						</p>
 					</div>
 
@@ -32,31 +32,28 @@ export function PublicFooter() {
 								</Link>
 							</li>
 							<li>
-								<Link
-									to="/"
-									hash="services"
+								<a
+									href="/#services"
 									className="transition-colors hover:text-white"
 								>
 									Services
-								</Link>
+								</a>
 							</li>
 							<li>
-								<Link
-									to="/"
-									hash="about"
+								<a
+									href="/#about"
 									className="transition-colors hover:text-white"
 								>
 									About Technosys
-								</Link>
+								</a>
 							</li>
 							<li>
-								<Link
-									to="/"
-									hash="how-it-works"
+								<a
+									href="/#how-it-works"
 									className="transition-colors hover:text-white"
 								>
 									How It Works
-								</Link>
+								</a>
 							</li>
 						</ul>
 					</div>
@@ -66,38 +63,10 @@ export function PublicFooter() {
 							Portals
 						</h2>
 						<ul className="mt-4 space-y-2.5 text-sm">
-							<li>
-								<Link
-									to={"/customer/login" as LinkProps["to"]}
-									className="transition-colors hover:text-white"
-								>
-									Customer Login
-								</Link>
-							</li>
-							<li>
-								<Link
-									to={"/technician/login" as LinkProps["to"]}
-									className="transition-colors hover:text-white"
-								>
-									Technician Login
-								</Link>
-							</li>
-							<li>
-								<Link
-									to={"/technician/register" as LinkProps["to"]}
-									className="transition-colors hover:text-white"
-								>
-									Become a Technician
-								</Link>
-							</li>
-							<li>
-								<Link
-									to={"/admin/login" as LinkProps["to"]}
-									className="transition-colors hover:text-white"
-								>
-									Admin Portal
-								</Link>
-							</li>
+							<li>Customer login · Coming soon</li>
+							<li>Technician login · Coming soon</li>
+							<li>Technician registration · Coming soon</li>
+							<li>Admin portal · Coming soon</li>
 						</ul>
 					</div>
 
@@ -105,11 +74,9 @@ export function PublicFooter() {
 						<h2 className="text-sm font-semibold tracking-wider text-white uppercase">
 							Contact
 						</h2>
-						<ul className="mt-4 space-y-2.5 text-sm text-slate-400">
-							<li>Support: support@technosys.local</li>
-							<li>Service Hours: Mon – Sat, 8:00 AM – 8:00 PM</li>
-							<li>Verified Professionals Network</li>
-						</ul>
+						<p className="mt-4 text-sm text-slate-400">
+							Support contact details · Coming soon
+						</p>
 					</div>
 				</div>
 
@@ -121,4 +88,3 @@ export function PublicFooter() {
 		</footer>
 	);
 }
-

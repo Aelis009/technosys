@@ -1,4 +1,4 @@
-import { Link, type LinkProps } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useId, useState } from "react";
 import { BrandLogo } from "../ui/BrandLogo";
 import { Button, buttonVariants } from "../ui/Button";
@@ -21,7 +21,9 @@ export function PublicNavbar({
 }: PublicNavbarProps) {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const mobileDrawerId = useId();
-	const navItems = getPublicNavItems(user);
+	const navItems = getPublicNavItems(user).map((item) =>
+		item.to === "/" ? item : { ...item, comingSoon: true },
+	);
 
 	const isAdmin = Boolean(user?.roles.includes("admin"));
 	const isTechnician = Boolean(user?.roles.includes("technician"));
@@ -62,22 +64,17 @@ export function PublicNavbar({
 			return (
 				<div
 					className={
-						mobile ? "flex flex-col gap-2.5" : "flex items-center gap-2.5"
+						mobile
+							? "flex flex-col items-start gap-3"
+							: "flex items-center gap-3"
 					}
 				>
-					<Link
-						to={"/login" as LinkProps["to"]}
-						onClick={closeIfMobile}
-						className={buttonVariants({
-							variant: "outline",
-							size: "sm",
-							fullWidth: mobile,
-						})}
-					>
-						Login
-					</Link>
-					<Link
-						to={"/technician/register" as LinkProps["to"]}
+					<span className="text-xs font-medium text-slate-600">
+						Login · Coming soon
+					</span>
+					{/* biome-ignore lint/a11y/useValidAnchor: The link navigates normally; the handler only closes the mobile drawer. */}
+					<a
+						href="/#technicians"
 						onClick={closeIfMobile}
 						className={buttonVariants({
 							variant: "primary",
@@ -85,8 +82,8 @@ export function PublicNavbar({
 							fullWidth: mobile,
 						})}
 					>
-						Become a Technician
-					</Link>
+						For technicians
+					</a>
 				</div>
 			);
 		}
@@ -96,31 +93,15 @@ export function PublicNavbar({
 				className={mobile ? "flex flex-col gap-2.5" : "flex items-center gap-3"}
 			>
 				{isAdmin ? (
-					<Link
-						to={"/admin/dashboard" as LinkProps["to"]}
-						onClick={closeIfMobile}
-						className={buttonVariants({
-							variant: "primary",
-							size: "sm",
-							fullWidth: mobile,
-						})}
-					>
-						Admin Dashboard
-					</Link>
+					<span className="text-xs text-slate-600">
+						Admin dashboard · Coming soon
+					</span>
 				) : null}
 
 				{isApprovedActiveTech ? (
-					<Link
-						to={"/technician/dashboard" as LinkProps["to"]}
-						onClick={closeIfMobile}
-						className={buttonVariants({
-							variant: "primary",
-							size: "sm",
-							fullWidth: mobile,
-						})}
-					>
-						Technician Dashboard
-					</Link>
+					<span className="text-xs text-slate-600">
+						Technician dashboard · Coming soon
+					</span>
 				) : null}
 
 				{!mobile ? renderUserSummary() : null}
