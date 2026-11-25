@@ -9,6 +9,28 @@ npm install
 npm run dev
 ```
 
+## Environment Configuration
+
+Copy `.env.example` to `.env.local` and set `DATABASE_URL` to a PostgreSQL connection URL before running the application or Drizzle commands. Server-side configuration validates that the URL is present and uses the PostgreSQL protocol.
+
+The Cloudinary, Twilio, SMTP, and JWT variables are placeholders for later features and are not required by the current application. Keep credentials in `.env.local` or deployment environment settings; do not commit them.
+
+## Seeding Initial Database Data
+
+After applying the Drizzle migrations, run `npm run db:seed` to insert the `admin`, `customer`, and `technician` roles and the initial main service categories. The command is safe to rerun: existing rows with the same unique names are left unchanged.
+
+Sub-service records are not seeded yet because their prices, durations, and coin requirements have not been defined. Technician registration uses main service categories only.
+
+## Authentication Foundations
+
+Server-side authentication helpers are in `src/server/auth`. Passwords use scrypt hashes; sessions use random opaque tokens stored in the database only as SHA-256 hashes and are issued in `HttpOnly`, `SameSite=Lax` cookies (also `Secure` in production). Use `requireAuthenticatedUser` or `requireRole` inside protected server handlers, and apply `csrfMiddleware` to mutating server functions. Route visibility is not an authorization boundary.
+
+## Creating the First Administrator
+
+After running the migrations and seed command, an authorized operator can run `npm run admin:create` from an interactive terminal with `NODE_ENV` explicitly set to the intended environment. The script asks for the administrator's name and email, reads the password without echoing it, and creates the user and admin role assignment in one transaction. If `NODE_ENV=production`, it requires the exact confirmation `CREATE ADMIN IN PRODUCTION`.
+
+The command refuses to reuse or promote an existing account. It does not create an administrator automatically and is not exposed as an application route.
+
 # Building For Production
 
 To build this application for production:
