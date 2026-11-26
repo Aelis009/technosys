@@ -37,7 +37,13 @@ function TechnicianDashboard() {
 		);
 	return (
 		<TechnicianLayout
-			user={{ ...entry.user, technicianStatus: entry.profile }}
+			user={{
+				...entry.user,
+				technicianStatus: entry.profile,
+				profileImageUrl: entry.profile?.hasPhoto
+					? `/api/technician/profile-photo/${entry.profile.id}`
+					: null,
+			}}
 			pageTitle="Technician dashboard"
 		>
 			<p>Dashboard features coming soon.</p>

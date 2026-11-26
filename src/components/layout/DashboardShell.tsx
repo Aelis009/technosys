@@ -76,7 +76,7 @@ export function DashboardShell({
 							aria-label={`Open ${portalTitle} menu`}
 							aria-controls={mobileDrawerId}
 							aria-expanded={mobileDrawerOpen}
-							className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 lg:hidden cursor-pointer"
+							className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 xl:hidden cursor-pointer"
 						>
 							<svg
 								aria-hidden="true"
@@ -98,6 +98,16 @@ export function DashboardShell({
 							<BrandLogo subtitle={portalSubtitle} />
 						</Link>
 					</div>
+
+					<nav aria-label={navLabel} className="hidden xl:block">
+						<ul className="flex flex-wrap items-center gap-0.5">
+							{navItems.map((item) => (
+								<li key={item.id}>
+									<AppNavLink item={item} />
+								</li>
+							))}
+						</ul>
+					</nav>
 
 					<div className="flex items-center gap-3">
 						{headerSlot}
@@ -134,28 +144,6 @@ export function DashboardShell({
 			</header>
 
 			<div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 py-6 sm:px-6 lg:px-8">
-				<aside className="hidden w-64 shrink-0 lg:block">
-					<div className="sticky top-22 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-						<div className="border-b border-slate-100 pb-3">{userSummary}</div>
-
-						<nav aria-label={navLabel}>
-							<ul className="flex flex-col gap-1">
-								{navItems.map((item) => (
-									<li key={item.id}>
-										<AppNavLink item={item} variant="sidebar" />
-									</li>
-								))}
-							</ul>
-						</nav>
-
-						{sidebarFooter ? (
-							<div className="border-t border-slate-100 pt-3">
-								{sidebarFooter}
-							</div>
-						) : null}
-					</div>
-				</aside>
-
 				<main
 					id="dashboard-content"
 					tabIndex={-1}
@@ -192,19 +180,24 @@ export function DashboardShell({
 				headerContent={userSummary}
 				footerActions={
 					onLogout ? (
-						<Button
-							variant="outline"
-							size="sm"
-							fullWidth
-							isLoading={isLoggingOut}
-							onClick={() => {
-								setMobileDrawerOpen(false);
-								onLogout();
-							}}
-						>
-							Logout
-						</Button>
-					) : undefined
+						<div className="space-y-3">
+							{sidebarFooter}
+							<Button
+								variant="outline"
+								size="sm"
+								fullWidth
+								isLoading={isLoggingOut}
+								onClick={() => {
+									setMobileDrawerOpen(false);
+									onLogout();
+								}}
+							>
+								Logout
+							</Button>
+						</div>
+					) : (
+						sidebarFooter
+					)
 				}
 			/>
 		</div>

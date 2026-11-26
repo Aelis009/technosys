@@ -1,4 +1,5 @@
 import { Link, type LinkProps, useRouterState } from "@tanstack/react-router";
+import { useRef } from "react";
 import type { NavItem } from "./navigation";
 
 interface AppNavLinkProps {
@@ -13,6 +14,8 @@ export function AppNavLink({
 	onNavigate,
 }: AppNavLinkProps) {
 	const location = useRouterState({ select: (state) => state.location });
+	const disclosure = useRef<HTMLDetailsElement>(null);
+	const summary = useRef<HTMLElement>(null);
 	const currentHash = location.hash.replace(/^#/, "");
 
 	const isActive = (() => {
@@ -63,6 +66,48 @@ export function AppNavLink({
 		"text-slate-600 hover:bg-slate-100 hover:text-slate-900";
 
 	const className = `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`;
+	if (item.children) {
+		return (
+			<details
+				ref={disclosure}
+				className="relative"
+				onKeyDown={(event) => {
+					if (event.key !== "Escape" || !disclosure.current?.open) return;
+					event.preventDefault();
+					event.stopPropagation();
+					disclosure.current.open = false;
+					summary.current?.focus();
+				}}
+			>
+				<summary
+					ref={summary}
+					className={`${className} cursor-pointer list-none`}
+				>
+					{item.label} <span aria-hidden="true">▾</span>
+				</summary>
+				<ul
+					className={
+						variant === "top"
+							? "absolute top-full left-0 z-50 mt-2 min-w-44 space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
+							: "space-y-1 pl-3"
+					}
+				>
+					{item.children.map((child) => (
+						<li key={child.id}>
+							<AppNavLink
+								item={child}
+								variant="mobile"
+								onNavigate={() => {
+									if (disclosure.current) disclosure.current.open = false;
+									onNavigate?.();
+								}}
+							/>
+						</li>
+					))}
+				</ul>
+			</details>
+		);
+	}
 	const content = (
 		<>
 			<span className="inline-flex items-center gap-2.5">

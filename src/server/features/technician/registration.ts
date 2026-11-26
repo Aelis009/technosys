@@ -12,6 +12,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../../db/index.ts";
 import {
+	addresses,
 	otpVerifications,
 	roles,
 	serviceCategories,
@@ -27,9 +28,11 @@ import { hashPassword } from "../../auth/password.ts";
 import {
 	type CloudinaryConfig,
 	CloudinaryConfigurationError,
+	CloudinaryUploadError,
 	deleteIdentityDocument,
 	getCloudinaryConfig,
 	uploadIdentityDocument,
+	uploadTechnicianProfilePhoto,
 	verifyCloudinaryConfiguration,
 } from "../../cloudinary.ts";
 import {
@@ -55,6 +58,7 @@ export const technicianRegistrationFieldsSchema = z
 			.string()
 			.trim()
 			.email("Enter a valid email address.")
+			.max(255)
 			.toLowerCase(),
 		password: z
 			.string()
@@ -70,11 +74,24 @@ export const technicianRegistrationFieldsSchema = z
 		gender: z.enum(["male", "female", "other"]).optional(),
 		dateOfBirth: z
 			.string()
-			.regex(
-				/^\d{4}-\d{2}-\d{2}$/,
-				"Date of birth must be in YYYY-MM-DD format.",
-			)
+			.date("Enter a valid date of birth.")
+			.refine((date) => date <= new Date().toISOString().slice(0, 10), {
+				message: "Date of birth cannot be in the future.",
+			})
 			.optional(),
+		houseNumber: z
+			.string()
+			.trim()
+			.min(1, "Enter a house or flat number.")
+			.max(100),
+		street: z.string().trim().min(1, "Enter a street.").max(255),
+		area: z.string().trim().min(1, "Enter an area.").max(150),
+		city: z.string().trim().min(1, "Enter a city.").max(100),
+		state: z.string().trim().min(1, "Enter a state.").max(100),
+		pincode: z
+			.string()
+			.trim()
+			.regex(/^[1-9]\d{5}$/, "Enter a valid six-digit PIN code."),
 		documentType: z
 			.string()
 			.trim()
@@ -144,6 +161,7 @@ export async function registerTechnicianWithIdentityDocument(
 	input: {
 		fields: TechnicianRegistrationFields;
 		document: ValidIdentityDocument;
+		profilePhoto: ValidIdentityDocument;
 		config: CloudinaryConfig;
 	},
 	dependencies = {
@@ -152,12 +170,13 @@ export async function registerTechnicianWithIdentityDocument(
 		hash: hashPassword,
 		encrypt: encryptAccountNumber,
 		upload: uploadIdentityDocument,
+		uploadPhoto: uploadTechnicianProfilePhoto,
 		remove: deleteIdentityDocument,
 		requireConfig: requireRegistrationCloudinary,
 	},
 ): Promise<{ success: true }> {
 	await dependencies.requireConfig();
-	const { fields, document, config } = input;
+	const { fields, document, profilePhoto, config } = input;
 	const db = dependencies.database;
 
 	const [emailConflict, mobileConflict, technicianRole] = await Promise.all([
@@ -236,15 +255,34 @@ export async function registerTechnicianWithIdentityDocument(
 
 	// Upload only after the request and OTP have been validated. The returned
 	// identifiers are provider-owned; no client value is reused.
-	const uploadedDocument = await dependencies.upload({
-		config,
-		bytes: document.bytes,
-		mimeType: document.mimeType,
-		format: document.format,
-	});
-
+	const uploadedIds: string[] = [];
 	try {
+		const uploadedDocument = await dependencies.upload({ config, ...document });
+		uploadedIds.push(uploadedDocument.publicId);
+		const uploadedPhoto = await dependencies.uploadPhoto({
+			config,
+			...profilePhoto,
+		});
+		uploadedIds.push(uploadedPhoto.publicId);
 		await db.transaction(async (tx) => {
+			const [category] = await tx
+				.select({ id: serviceCategories.id })
+				.from(serviceCategories)
+				.where(
+					and(
+						eq(serviceCategories.id, fields.serviceCategoryId),
+						eq(serviceCategories.isActive, true),
+					),
+				)
+				.limit(1)
+				.for("share");
+			if (!category) {
+				throw new TechnicianRegistrationError(
+					400,
+					"INACTIVE_SERVICE_CATEGORY",
+					"Select an active service category.",
+				);
+			}
 			const [newUser] = await tx
 				.insert(users)
 				.values({
@@ -273,6 +311,8 @@ export async function registerTechnicianWithIdentityDocument(
 					userId,
 					gender: fields.gender ?? null,
 					dateOfBirth: fields.dateOfBirth ?? null,
+					profileImageUrl: uploadedPhoto.secureUrl,
+					profileImagePublicId: uploadedPhoto.publicId,
 					verificationStatus: "pending",
 					activeStatus: "active",
 				})
@@ -283,6 +323,18 @@ export async function registerTechnicianWithIdentityDocument(
 			}
 
 			const technicianId = techProfile.id;
+
+			await tx.insert(addresses).values({
+				userId,
+				label: "Home",
+				houseNumber: fields.houseNumber,
+				street: fields.street,
+				area: fields.area,
+				city: fields.city,
+				state: fields.state,
+				pincode: fields.pincode,
+				isDefault: true,
+			});
 
 			await tx.insert(technicianServiceCategories).values({
 				technicianId,
@@ -309,14 +361,18 @@ export async function registerTechnicianWithIdentityDocument(
 				.set({ userId })
 				.where(eq(otpVerifications.id, otpRecordId));
 		});
-	} catch {
-		// The database rejected the application after the private asset existed.
-		// Remove it so orphaned identity documents cannot accumulate.
-		try {
-			await dependencies.remove(config, uploadedDocument.publicId);
-		} catch {
+	} catch (error) {
+		const cleanup = await Promise.allSettled(
+			uploadedIds.map((id) => dependencies.remove(config, id)),
+		);
+		if (cleanup.some((result) => result.status === "rejected")) {
 			console.error("[Technician registration] private asset cleanup failed.");
 		}
+		if (
+			error instanceof TechnicianRegistrationError ||
+			error instanceof CloudinaryUploadError
+		)
+			throw error;
 
 		throw new TechnicianRegistrationError(
 			500,

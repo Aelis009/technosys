@@ -38,11 +38,11 @@ export function TechnicianLayout({
 			portalTitle="Technician Portal"
 			portalSubtitle="Technician Workspace"
 			navLabel="Technician"
-			navItems={getTechnicianNavItems()}
+			navItems={getTechnicianNavItems(user)}
 			user={user}
 			onLogout={onLogout}
 			isLoggingOut={isLoggingOut}
-			headerSlot={coinBadge}
+			headerSlot={coinBalance != null ? coinBadge : undefined}
 			pageTitle={pageTitle}
 			pageDescription={pageDescription}
 			pageActions={pageActions}
@@ -51,4 +51,3 @@ export function TechnicianLayout({
 		</DashboardShell>
 	);
 }
-

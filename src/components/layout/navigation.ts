@@ -9,6 +9,7 @@ export interface NavItem {
 	comingSoon?: boolean;
 	badge?: string | number;
 	icon?: ReactNode;
+	children?: NavItem[];
 }
 
 export interface TechnicianLayoutStatus {
@@ -69,7 +70,18 @@ export function getCustomerNavItems(): NavItem[] {
 	];
 }
 
-export function getTechnicianNavItems(): NavItem[] {
+export function getTechnicianNavItems(user: LayoutUser): NavItem[] {
+	const status: NavItem = {
+		id: "status",
+		label: "Application status",
+		to: "/technician/status",
+		exact: true,
+	};
+	if (
+		user.technicianStatus?.verificationStatus !== "approved" ||
+		user.technicianStatus.activeStatus !== "active"
+	)
+		return [status];
 	return [
 		{
 			id: "dashboard",
@@ -77,6 +89,7 @@ export function getTechnicianNavItems(): NavItem[] {
 			to: "/technician/dashboard",
 			exact: true,
 		},
+		status,
 		{
 			id: "availability",
 			label: "Availability",
@@ -128,7 +141,6 @@ export function getAdminNavItems(pendingTechniciansCount?: number): NavItem[] {
 			id: "technicians",
 			label: "Technicians",
 			to: "/admin/technicians",
-			comingSoon: true,
 			badge:
 				pendingTechniciansCount && pendingTechniciansCount > 0
 					? pendingTechniciansCount
@@ -144,7 +156,20 @@ export function getAdminNavItems(pendingTechniciansCount?: number): NavItem[] {
 			id: "categories",
 			label: "Categories",
 			to: "/admin/categories",
-			comingSoon: true,
+			children: [
+				{
+					id: "main-categories",
+					label: "Main Categories",
+					to: "/admin/categories",
+					exact: true,
+				},
+				{
+					id: "subcategories",
+					label: "Subcategories",
+					to: "/admin/categories/subcategories",
+					exact: true,
+				},
+			],
 		},
 		{
 			id: "subscriptions",

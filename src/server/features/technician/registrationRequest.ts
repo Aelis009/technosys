@@ -3,7 +3,7 @@
  *
  * The body is read through a hard byte limit before multipart parsing, so a
  * missing or false Content-Length cannot bypass the cap. Only the documented
- * form fields plus one identity file are accepted; legacy client-supplied
+ * form fields, identity file, and profile photo are accepted; client-supplied
  * document URLs/public IDs are rejected outright.
  */
 
@@ -29,7 +29,7 @@ import {
 } from "./registration.ts";
 
 export const MAX_REGISTRATION_BODY_BYTES =
-	MAX_IDENTITY_DOCUMENT_BYTES + 512 * 1024;
+	2 * MAX_IDENTITY_DOCUMENT_BYTES + 512 * 1024;
 
 const allowedFieldNames = [
 	"name",
@@ -41,6 +41,12 @@ const allowedFieldNames = [
 	"serviceCategoryId",
 	"gender",
 	"dateOfBirth",
+	"houseNumber",
+	"street",
+	"area",
+	"city",
+	"state",
+	"pincode",
 	"documentType",
 	"accountHolderName",
 	"accountNumber",
@@ -175,7 +181,11 @@ async function parseMultipartForm(formData: FormData) {
 			);
 		}
 
-		if (key !== "document" && !allowedFieldSet.has(key)) {
+		if (
+			key !== "document" &&
+			key !== "profilePhoto" &&
+			!allowedFieldSet.has(key)
+		) {
 			throw new RegistrationRequestError(
 				400,
 				"UNEXPECTED_FIELD",
@@ -202,26 +212,6 @@ async function parseMultipartForm(formData: FormData) {
 		if (raw[optionalName] === "") delete raw[optionalName];
 	}
 
-	const file = formData.get("document");
-	if (!isFileLike(file)) {
-		throw new IdentityDocumentError(
-			"Upload a JPG, JPEG, or PNG identity document.",
-		);
-	}
-
-	if (file.size > MAX_IDENTITY_DOCUMENT_BYTES) {
-		throw new IdentityDocumentError(
-			"Identity document must be 5 MB or smaller.",
-		);
-	}
-
-	const bytes = new Uint8Array(await file.arrayBuffer());
-	const document = validateIdentityDocument({
-		bytes,
-		mimeType: file.type,
-		fileName: file.name,
-	});
-
 	let fields: TechnicianRegistrationFields;
 	try {
 		fields = technicianRegistrationFieldsSchema.parse(raw);
@@ -237,7 +227,23 @@ async function parseMultipartForm(formData: FormData) {
 		throw error;
 	}
 
-	return { fields, document };
+	async function readImage(key: string, label: string) {
+		const file = formData.get(key);
+		if (!isFileLike(file) || file.size === 0) {
+			throw new IdentityDocumentError(`Upload a JPG, JPEG, or PNG ${label}.`);
+		}
+		if (file.size > MAX_IDENTITY_DOCUMENT_BYTES) {
+			throw new IdentityDocumentError(`The ${label} must be 5 MB or smaller.`);
+		}
+		return validateIdentityDocument({
+			bytes: new Uint8Array(await file.arrayBuffer()),
+			mimeType: file.type,
+			fileName: file.name,
+		});
+	}
+	const document = await readImage("document", "identity document");
+	const profilePhoto = await readImage("profilePhoto", "profile photo");
+	return { fields, document, profilePhoto };
 }
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -352,11 +358,13 @@ export async function handleTechnicianRegistrationRequest(
 			);
 		}
 
-		const { fields, document } = await parseMultipartForm(formData);
+		const { fields, document, profilePhoto } =
+			await parseMultipartForm(formData);
 		const config = await dependencies.requireConfig();
 		const result = await dependencies.register({
 			fields,
 			document,
+			profilePhoto,
 			config,
 		});
 

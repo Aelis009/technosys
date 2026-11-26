@@ -16,6 +16,7 @@ import type {
 
 const cloudinaryApiBase = "https://api.cloudinary.com/v1_1";
 const identityDocumentFolder = "technosys/technician-documents";
+const profilePhotoFolder = "technosys/technician-photos";
 const verificationTimeoutMs = 5_000;
 const uploadTimeoutMs = 20_000;
 
@@ -177,14 +178,27 @@ function parseUploadResponse(
  * Uploads identity bytes as a private authenticated Cloudinary image. The
  * caller cannot supply a Cloudinary URL, public ID, or credentials.
  */
-export async function uploadIdentityDocument(input: {
+type ImageUpload = {
 	config: CloudinaryConfig;
 	bytes: Uint8Array;
 	mimeType: IdentityDocumentMimeType;
 	format: IdentityDocumentFormat;
-}): Promise<UploadedIdentityDocument> {
+};
+
+export function uploadIdentityDocument(input: ImageUpload) {
+	return uploadAuthenticatedImage(input, identityDocumentFolder);
+}
+
+export function uploadTechnicianProfilePhoto(input: ImageUpload) {
+	return uploadAuthenticatedImage(input, profilePhotoFolder);
+}
+
+async function uploadAuthenticatedImage(
+	input: ImageUpload,
+	folder: string,
+): Promise<UploadedIdentityDocument> {
 	const timestamp = String(Math.floor(Date.now() / 1000));
-	const publicId = `${identityDocumentFolder}/${randomUUID()}`;
+	const publicId = `${folder}/${randomUUID()}`;
 	const signedParams = {
 		public_id: publicId,
 		timestamp,

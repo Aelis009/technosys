@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../../db/index.ts";
-import { technicianDocuments } from "../../../db/schema.ts";
+import { technicianDocuments, technicianProfiles } from "../../../db/schema.ts";
 import {
 	AuthenticationError,
 	AuthorizationError,
+	requireAuthenticatedUser,
 	requireRole,
 } from "../../auth/session.ts";
 import { getCloudinaryConfig } from "../../cloudinary.ts";
@@ -34,14 +35,19 @@ const defaultDependencies: DeliveryDependencies = {
 	fetchDocument: fetchPrivateCloudinaryDocument,
 };
 
-async function fetchPrivateCloudinaryDocument(metadata: DocumentMetadata) {
+async function fetchPrivateCloudinaryDocument(
+	metadata: DocumentMetadata,
+	folder = "technician-documents",
+) {
 	const config = getCloudinaryConfig();
 	const id = metadata.publicId;
 	// Only assets created by this application are eligible; never fetch stored URLs.
 	if (
 		!config ||
 		!id ||
-		!/^technosys\/technician-documents\/[A-Za-z0-9_-]+$/.test(id)
+		!id.startsWith(`technosys/${folder}/`) ||
+		!/^[A-Za-z0-9_-]+$/.test(id.split("/").at(-1) ?? "") ||
+		id.split("/").length !== 3
 	)
 		throw new Error("Unavailable");
 	let stored: URL;
@@ -110,12 +116,45 @@ async function fetchPrivateCloudinaryDocument(metadata: DocumentMetadata) {
 	return { bytes, mime };
 }
 
+export async function deliverTechnicianProfilePhoto(
+	id: string,
+): Promise<Response> {
+	let ownerId: string | undefined;
+	return deliverTechnicianDocument(id, {
+		authorize: async () => {
+			const user = await requireAuthenticatedUser();
+			if (user.roles.includes("admin")) return;
+			if (!user.roles.includes("technician")) throw new AuthorizationError();
+			ownerId = user.id;
+		},
+		find: async (id) => {
+			const [row] = await db
+				.select({
+					publicId: technicianProfiles.profileImagePublicId,
+					url: technicianProfiles.profileImageUrl,
+				})
+				.from(technicianProfiles)
+				.where(
+					and(
+						eq(technicianProfiles.id, id),
+						ownerId ? eq(technicianProfiles.userId, ownerId) : undefined,
+					),
+				)
+				.limit(1);
+			return row?.url ? { publicId: row.publicId, url: row.url } : undefined;
+		},
+		fetchDocument: (metadata) =>
+			fetchPrivateCloudinaryDocument(metadata, "technician-photos"),
+	});
+}
+
 export async function deliverTechnicianDocument(
 	id: string,
 	dependencies: DeliveryDependencies = defaultDependencies,
 ): Promise<Response> {
 	const headers = {
 		"Cache-Control": "private, no-store",
+		"Cross-Origin-Resource-Policy": "same-origin",
 		"X-Content-Type-Options": "nosniff",
 		"Content-Security-Policy": "default-src 'none'; sandbox",
 		"Content-Disposition": "inline",

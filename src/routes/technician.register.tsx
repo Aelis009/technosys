@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { PublicLayout } from "#/components/layout/PublicLayout";
 import { AuthPageCard } from "#/features/auth/AuthPageCard";
@@ -25,6 +25,7 @@ function RegistrationPage() {
 	const { readiness, categories } = Route.useLoaderData();
 	const [message, setMessage] = useState("");
 	const [busy, setBusy] = useState(false);
+	const [submitted, setSubmitted] = useState(false);
 	async function sendOtp(form: HTMLFormElement) {
 		setBusy(true);
 		setMessage("");
@@ -56,7 +57,10 @@ function RegistrationPage() {
 					? "Application submitted. Your account awaits review; please log in separately."
 					: (result.error?.message ?? "Registration unavailable."),
 			);
-			if (response.ok) form.reset();
+			if (response.ok) {
+				form.reset();
+				setSubmitted(true);
+			}
 		} catch {
 			setMessage("Could not submit registration. Please try again.");
 		} finally {
@@ -73,6 +77,18 @@ function RegistrationPage() {
 					<p>Technician registration · Coming soon</p>
 				) : !categories.ok ? (
 					<p>Service categories are unavailable. Please try again later.</p>
+				) : submitted ? (
+					<div className="space-y-3">
+						<output className="block">
+							Application submitted. Sign in to follow its review status.
+						</output>
+						<Link
+							to="/technician/login"
+							className="font-semibold text-brand-700 underline"
+						>
+							Sign in as technician
+						</Link>
+					</div>
 				) : (
 					<form onSubmit={submit} className="grid gap-3">
 						<label>
@@ -83,6 +99,48 @@ function RegistrationPage() {
 								minLength={2}
 								maxLength={100}
 								className="block w-full border rounded p-2"
+							/>
+						</label>
+						<fieldset className="grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-2">
+							<legend className="px-2 font-semibold">Address</legend>
+							{[
+								["houseNumber", "House / flat", 100],
+								["street", "Street", 255],
+								["area", "Area", 150],
+								["city", "City", 100],
+								["state", "State", 100],
+							].map(([key, label, maxLength]) => (
+								<label key={key} className="text-sm font-medium">
+									{label}
+									<input
+										name={String(key)}
+										required
+										maxLength={Number(maxLength)}
+										className="block w-full rounded border p-2"
+									/>
+								</label>
+							))}
+							<label className="text-sm font-medium">
+								PIN code
+								<input
+									name="pincode"
+									autoComplete="postal-code"
+									inputMode="numeric"
+									required
+									pattern="[1-9][0-9]{5}"
+									maxLength={6}
+									className="block w-full rounded border p-2"
+								/>
+							</label>
+						</fieldset>
+						<label>
+							Profile photo (JPG, JPEG or PNG, max 5 MB)
+							<input
+								name="profilePhoto"
+								type="file"
+								accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+								required
+								className="block w-full"
 							/>
 						</label>
 						<label>

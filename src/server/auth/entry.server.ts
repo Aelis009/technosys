@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.ts";
 import { technicianProfiles } from "../../db/schema.ts";
 import { canAccessTechnicianDashboard } from "./guards.ts";
@@ -14,6 +14,8 @@ export async function entryState() {
 		if (user.roles.includes("technician")) {
 			[profile] = await db
 				.select({
+					id: technicianProfiles.id,
+					hasPhoto: sql<boolean>`${technicianProfiles.profileImagePublicId} is not null`,
 					verificationStatus: technicianProfiles.verificationStatus,
 					activeStatus: technicianProfiles.activeStatus,
 					verificationReason: technicianProfiles.verificationReason,
