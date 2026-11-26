@@ -4,6 +4,7 @@ import { type FormEvent, useState } from "react";
 import { PublicLayout } from "#/components/layout/PublicLayout";
 import { Button, FormField, TextInput } from "#/components/ui";
 import { AuthPageCard } from "#/features/auth/AuthPageCard";
+import { getTechnicianHome } from "#/features/auth/staffHome";
 import { loginStaff } from "#/server/auth/staffLogin";
 
 export const Route = createFileRoute("/technician/login")({ component: Login });
@@ -26,9 +27,7 @@ function Login() {
 				to:
 					result.role === "admin"
 						? "/admin/dashboard"
-						: result.canAccessDashboard
-							? "/technician/dashboard"
-							: "/technician/status",
+						: getTechnicianHome(result.canAccessDashboard),
 			});
 		} catch (cause) {
 			setError(

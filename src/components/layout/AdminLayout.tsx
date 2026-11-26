@@ -25,6 +25,7 @@ export function AdminLayout({
 }: AdminLayoutProps) {
 	return (
 		<DashboardShell
+			homeTo="/admin/dashboard"
 			portalTitle="Admin Console"
 			portalSubtitle="Administration"
 			navLabel="Administrator"
@@ -40,4 +41,3 @@ export function AdminLayout({
 		</DashboardShell>
 	);
 }
-

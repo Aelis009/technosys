@@ -6,10 +6,11 @@ import { Button } from "../ui/Button";
 import { StatusBadge } from "../ui/StatusBadge";
 import { UserAvatar } from "../ui/UserAvatar";
 import { AppNavLink } from "./AppNavLink";
-import { MobileNavigation } from "./MobileNavigation";
+import { type LogoHome, MobileNavigation } from "./MobileNavigation";
 import type { LayoutUser, NavItem } from "./navigation";
 
 interface DashboardShellProps {
+	homeTo?: LogoHome;
 	portalTitle: string;
 	portalSubtitle: string;
 	navLabel: string;
@@ -26,6 +27,7 @@ interface DashboardShellProps {
 }
 
 export function DashboardShell({
+	homeTo = "/",
 	portalTitle,
 	portalSubtitle,
 	navLabel,
@@ -94,7 +96,7 @@ export function DashboardShell({
 							</svg>
 						</button>
 
-						<Link to="/" className="rounded-lg">
+						<Link to={homeTo} className="rounded-lg">
 							<BrandLogo subtitle={portalSubtitle} />
 						</Link>
 					</div>
@@ -172,6 +174,7 @@ export function DashboardShell({
 			</div>
 
 			<MobileNavigation
+				homeTo={homeTo}
 				id={mobileDrawerId}
 				open={mobileDrawerOpen}
 				onClose={() => setMobileDrawerOpen(false)}

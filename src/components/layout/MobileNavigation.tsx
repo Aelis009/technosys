@@ -1,9 +1,17 @@
+import { Link } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 import { BrandLogo } from "../ui/BrandLogo";
 import { AppNavLink } from "./AppNavLink";
 import type { NavItem } from "./navigation";
 
+export type LogoHome =
+	| "/"
+	| "/admin/dashboard"
+	| "/technician/dashboard"
+	| "/technician/status";
+
 interface MobileNavigationProps {
+	homeTo?: LogoHome;
 	id?: string;
 	open: boolean;
 	onClose: () => void;
@@ -14,6 +22,7 @@ interface MobileNavigationProps {
 }
 
 export function MobileNavigation({
+	homeTo,
 	id,
 	open,
 	onClose,
@@ -56,7 +65,13 @@ export function MobileNavigation({
 		>
 			<div className="flex h-full flex-col">
 				<div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5">
-					<BrandLogo subtitle={title} />
+					{homeTo ? (
+						<Link to={homeTo} onClick={onClose} className="rounded-lg">
+							<BrandLogo subtitle={title} />
+						</Link>
+					) : (
+						<BrandLogo subtitle={title} />
+					)}
 					<button
 						type="button"
 						onClick={onClose}

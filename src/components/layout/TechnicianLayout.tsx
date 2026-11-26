@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { getTechnicianHome } from "#/features/auth/staffHome";
 import { DashboardShell } from "./DashboardShell";
 import { getTechnicianNavItems, type LayoutUser } from "./navigation";
 
@@ -32,9 +33,14 @@ export function TechnicianLayout({
 			<span>Coins: {coinBalance ?? "—"}</span>
 		</div>
 	);
+	const homeTo = getTechnicianHome(
+		user.technicianStatus?.verificationStatus === "approved" &&
+			user.technicianStatus.activeStatus === "active",
+	);
 
 	return (
 		<DashboardShell
+			homeTo={homeTo}
 			portalTitle="Technician Portal"
 			portalSubtitle="Technician Workspace"
 			navLabel="Technician"
