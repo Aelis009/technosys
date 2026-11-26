@@ -10,33 +10,168 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as CustomerLoginRouteImport } from './routes/customer.login'
+import { Route as CustomerProfileRouteImport } from './routes/customer.profile'
+import { Route as TechnicianDashboardRouteImport } from './routes/technician.dashboard'
+import { Route as TechnicianLoginRouteImport } from './routes/technician.login'
+import { Route as TechnicianRegisterRouteImport } from './routes/technician.register'
+import { Route as TechnicianStatusRouteImport } from './routes/technician.status'
+import { Route as ApiTechnicianRegisterRouteImport } from './routes/api.technician.register'
+import { Route as ApiAdminTechnicianDocumentsDocumentIdRouteImport } from './routes/api.admin.technician-documents.$documentId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/admin/dashboard',
+  path: '/admin/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerLoginRoute = CustomerLoginRouteImport.update({
+  id: '/customer/login',
+  path: '/customer/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerProfileRoute = CustomerProfileRouteImport.update({
+  id: '/customer/profile',
+  path: '/customer/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TechnicianDashboardRoute = TechnicianDashboardRouteImport.update({
+  id: '/technician/dashboard',
+  path: '/technician/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TechnicianLoginRoute = TechnicianLoginRouteImport.update({
+  id: '/technician/login',
+  path: '/technician/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TechnicianRegisterRoute = TechnicianRegisterRouteImport.update({
+  id: '/technician/register',
+  path: '/technician/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TechnicianStatusRoute = TechnicianStatusRouteImport.update({
+  id: '/technician/status',
+  path: '/technician/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTechnicianRegisterRoute = ApiTechnicianRegisterRouteImport.update({
+  id: '/api/technician/register',
+  path: '/api/technician/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminTechnicianDocumentsDocumentIdRoute =
+  ApiAdminTechnicianDocumentsDocumentIdRouteImport.update({
+    id: '/api/admin/technician-documents/$documentId',
+    path: '/api/admin/technician-documents/$documentId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/customer/login': typeof CustomerLoginRoute
+  '/customer/profile': typeof CustomerProfileRoute
+  '/technician/dashboard': typeof TechnicianDashboardRoute
+  '/technician/login': typeof TechnicianLoginRoute
+  '/technician/register': typeof TechnicianRegisterRoute
+  '/technician/status': typeof TechnicianStatusRoute
+  '/api/technician/register': typeof ApiTechnicianRegisterRoute
+  '/api/admin/technician-documents/$documentId': typeof ApiAdminTechnicianDocumentsDocumentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/customer/login': typeof CustomerLoginRoute
+  '/customer/profile': typeof CustomerProfileRoute
+  '/technician/dashboard': typeof TechnicianDashboardRoute
+  '/technician/login': typeof TechnicianLoginRoute
+  '/technician/register': typeof TechnicianRegisterRoute
+  '/technician/status': typeof TechnicianStatusRoute
+  '/api/technician/register': typeof ApiTechnicianRegisterRoute
+  '/api/admin/technician-documents/$documentId': typeof ApiAdminTechnicianDocumentsDocumentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/customer/login': typeof CustomerLoginRoute
+  '/customer/profile': typeof CustomerProfileRoute
+  '/technician/dashboard': typeof TechnicianDashboardRoute
+  '/technician/login': typeof TechnicianLoginRoute
+  '/technician/register': typeof TechnicianRegisterRoute
+  '/technician/status': typeof TechnicianStatusRoute
+  '/api/technician/register': typeof ApiTechnicianRegisterRoute
+  '/api/admin/technician-documents/$documentId': typeof ApiAdminTechnicianDocumentsDocumentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/admin/dashboard'
+    | '/customer/login'
+    | '/customer/profile'
+    | '/technician/dashboard'
+    | '/technician/login'
+    | '/technician/register'
+    | '/technician/status'
+    | '/api/technician/register'
+    | '/api/admin/technician-documents/$documentId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/admin/dashboard'
+    | '/customer/login'
+    | '/customer/profile'
+    | '/technician/dashboard'
+    | '/technician/login'
+    | '/technician/register'
+    | '/technician/status'
+    | '/api/technician/register'
+    | '/api/admin/technician-documents/$documentId'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/admin/dashboard'
+    | '/customer/login'
+    | '/customer/profile'
+    | '/technician/dashboard'
+    | '/technician/login'
+    | '/technician/register'
+    | '/technician/status'
+    | '/api/technician/register'
+    | '/api/admin/technician-documents/$documentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginRoute: typeof LoginRoute
+  AdminDashboardRoute: typeof AdminDashboardRoute
+  CustomerLoginRoute: typeof CustomerLoginRoute
+  CustomerProfileRoute: typeof CustomerProfileRoute
+  TechnicianDashboardRoute: typeof TechnicianDashboardRoute
+  TechnicianLoginRoute: typeof TechnicianLoginRoute
+  TechnicianRegisterRoute: typeof TechnicianRegisterRoute
+  TechnicianStatusRoute: typeof TechnicianStatusRoute
+  ApiTechnicianRegisterRoute: typeof ApiTechnicianRegisterRoute
+  ApiAdminTechnicianDocumentsDocumentIdRoute: typeof ApiAdminTechnicianDocumentsDocumentIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +183,92 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/admin/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer/login': {
+      id: '/customer/login'
+      path: '/customer/login'
+      fullPath: '/customer/login'
+      preLoaderRoute: typeof CustomerLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer/profile': {
+      id: '/customer/profile'
+      path: '/customer/profile'
+      fullPath: '/customer/profile'
+      preLoaderRoute: typeof CustomerProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/technician/dashboard': {
+      id: '/technician/dashboard'
+      path: '/technician/dashboard'
+      fullPath: '/technician/dashboard'
+      preLoaderRoute: typeof TechnicianDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/technician/login': {
+      id: '/technician/login'
+      path: '/technician/login'
+      fullPath: '/technician/login'
+      preLoaderRoute: typeof TechnicianLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/technician/register': {
+      id: '/technician/register'
+      path: '/technician/register'
+      fullPath: '/technician/register'
+      preLoaderRoute: typeof TechnicianRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/technician/status': {
+      id: '/technician/status'
+      path: '/technician/status'
+      fullPath: '/technician/status'
+      preLoaderRoute: typeof TechnicianStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/technician/register': {
+      id: '/api/technician/register'
+      path: '/api/technician/register'
+      fullPath: '/api/technician/register'
+      preLoaderRoute: typeof ApiTechnicianRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/technician-documents/$documentId': {
+      id: '/api/admin/technician-documents/$documentId'
+      path: '/api/admin/technician-documents/$documentId'
+      fullPath: '/api/admin/technician-documents/$documentId'
+      preLoaderRoute: typeof ApiAdminTechnicianDocumentsDocumentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
+  AdminDashboardRoute: AdminDashboardRoute,
+  CustomerLoginRoute: CustomerLoginRoute,
+  CustomerProfileRoute: CustomerProfileRoute,
+  TechnicianDashboardRoute: TechnicianDashboardRoute,
+  TechnicianLoginRoute: TechnicianLoginRoute,
+  TechnicianRegisterRoute: TechnicianRegisterRoute,
+  TechnicianStatusRoute: TechnicianStatusRoute,
+  ApiTechnicianRegisterRoute: ApiTechnicianRegisterRoute,
+  ApiAdminTechnicianDocumentsDocumentIdRoute:
+    ApiAdminTechnicianDocumentsDocumentIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

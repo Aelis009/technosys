@@ -3,9 +3,22 @@ import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import type { ReactNode } from "react";
 
+import { type AuthState, getAuthState } from "#/server/auth/state";
+import { getTechnicianRegistrationAvailability } from "#/server/features/technician/availability";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
+	beforeLoad: async () => ({
+		auth: await getAuthState().catch(
+			(): AuthState => ({ status: "unavailable" }),
+		),
+		registrationReady: (
+			await getTechnicianRegistrationAvailability().catch(() => ({
+				available: false,
+			}))
+		).available,
+	}),
+	headers: () => ({ "Cache-Control": "private, no-store" }),
 	head: () => ({
 		meta: [
 			{

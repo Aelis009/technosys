@@ -1,7 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { BrandLogo } from "../ui/BrandLogo";
 
-export function PublicFooter() {
+export function PublicFooter({
+	registrationReady = false,
+}: {
+	registrationReady?: boolean;
+}) {
 	const currentYear = new Date().getFullYear();
 
 	return (
@@ -63,10 +67,34 @@ export function PublicFooter() {
 							Portals
 						</h2>
 						<ul className="mt-4 space-y-2.5 text-sm">
-							<li>Customer login · Coming soon</li>
-							<li>Technician login · Coming soon</li>
-							<li>Technician registration · Coming soon</li>
-							<li>Admin portal · Coming soon</li>
+							<li>
+								<Link
+									to="/customer/login"
+									className="transition-colors hover:text-white"
+								>
+									Customer login
+								</Link>
+							</li>
+							<li>
+								<Link
+									to="/technician/login"
+									className="transition-colors hover:text-white"
+								>
+									Technician login
+								</Link>
+							</li>
+							<li>
+								{registrationReady ? (
+									<Link
+										to="/technician/register"
+										className="transition-colors hover:text-white"
+									>
+										Technician registration
+									</Link>
+								) : (
+									"Technician registration · Coming soon"
+								)}
+							</li>
 						</ul>
 					</div>
 

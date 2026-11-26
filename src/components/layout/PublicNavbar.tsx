@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useId, useState } from "react";
+import { type KeyboardEvent, useId, useState } from "react";
 import { BrandLogo } from "../ui/BrandLogo";
 import { Button, buttonVariants } from "../ui/Button";
 import { StatusBadge } from "../ui/StatusBadge";
@@ -20,10 +20,10 @@ export function PublicNavbar({
 	isLoggingOut = false,
 }: PublicNavbarProps) {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const [loginOpen, setLoginOpen] = useState(false);
 	const mobileDrawerId = useId();
-	const navItems = getPublicNavItems(user).map((item) =>
-		item.to === "/" ? item : { ...item, comingSoon: true },
-	);
+	const loginMenuId = useId();
+	const navItems = getPublicNavItems(user);
 
 	const isAdmin = Boolean(user?.roles.includes("admin"));
 	const isTechnician = Boolean(user?.roles.includes("technician"));
@@ -59,6 +59,17 @@ export function PublicNavbar({
 
 	const renderAuthActions = (mobile = false) => {
 		const closeIfMobile = mobile ? () => setMobileMenuOpen(false) : undefined;
+		const menuId = `${loginMenuId}-${mobile ? "mobile" : "desktop"}`;
+		const dismissLogin = (event: KeyboardEvent<HTMLElement>) => {
+			if (event.key !== "Escape" || !loginOpen) return;
+			event.preventDefault();
+			event.stopPropagation();
+			setLoginOpen(false);
+			event.currentTarget
+				.closest("[data-login-menu]")
+				?.querySelector<HTMLButtonElement>("button")
+				?.focus();
+		};
 
 		if (!user) {
 			return (
@@ -69,9 +80,45 @@ export function PublicNavbar({
 							: "flex items-center gap-3"
 					}
 				>
-					<span className="text-xs font-medium text-slate-600">
-						Login · Coming soon
-					</span>
+					<div className="relative" data-login-menu>
+						<button
+							type="button"
+							aria-expanded={loginOpen}
+							aria-controls={menuId}
+							onKeyDown={dismissLogin}
+							onClick={() => setLoginOpen(!loginOpen)}
+							className="text-sm font-medium text-slate-600 hover:text-slate-900"
+						>
+							Login
+						</button>
+						{loginOpen ? (
+							<div
+								id={menuId}
+								className="z-50 mt-2 flex min-w-40 flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-lg lg:absolute"
+							>
+								<Link
+									to="/customer/login"
+									onKeyDown={dismissLogin}
+									onClick={() => {
+										setLoginOpen(false);
+										closeIfMobile?.();
+									}}
+								>
+									Customer
+								</Link>
+								<Link
+									to="/technician/login"
+									onKeyDown={dismissLogin}
+									onClick={() => {
+										setLoginOpen(false);
+										closeIfMobile?.();
+									}}
+								>
+									Technician
+								</Link>
+							</div>
+						) : null}
+					</div>
 					{/* biome-ignore lint/a11y/useValidAnchor: The link navigates normally; the handler only closes the mobile drawer. */}
 					<a
 						href="/#technicians"
@@ -93,15 +140,22 @@ export function PublicNavbar({
 				className={mobile ? "flex flex-col gap-2.5" : "flex items-center gap-3"}
 			>
 				{isAdmin ? (
-					<span className="text-xs text-slate-600">
-						Admin dashboard · Coming soon
-					</span>
+					<Link to="/admin/dashboard" className="text-sm underline">
+						Dashboard
+					</Link>
 				) : null}
 
-				{isApprovedActiveTech ? (
-					<span className="text-xs text-slate-600">
-						Technician dashboard · Coming soon
-					</span>
+				{isTechnician && !isAdmin ? (
+					<Link
+						to={
+							isApprovedActiveTech
+								? "/technician/dashboard"
+								: "/technician/status"
+						}
+						className="text-sm underline"
+					>
+						{isApprovedActiveTech ? "Dashboard" : "Status"}
+					</Link>
 				) : null}
 
 				{!mobile ? renderUserSummary() : null}
@@ -177,7 +231,10 @@ export function PublicNavbar({
 			<MobileNavigation
 				id={mobileDrawerId}
 				open={mobileMenuOpen}
-				onClose={() => setMobileMenuOpen(false)}
+				onClose={() => {
+					setMobileMenuOpen(false);
+					setLoginOpen(false);
+				}}
 				items={navItems}
 				title="Menu"
 				headerContent={user ? renderUserSummary() : undefined}

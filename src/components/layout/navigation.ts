@@ -128,6 +128,7 @@ export function getAdminNavItems(pendingTechniciansCount?: number): NavItem[] {
 			id: "technicians",
 			label: "Technicians",
 			to: "/admin/technicians",
+			comingSoon: true,
 			badge:
 				pendingTechniciansCount && pendingTechniciansCount > 0
 					? pendingTechniciansCount
@@ -165,4 +166,3 @@ export function getAdminNavItems(pendingTechniciansCount?: number): NavItem[] {
 		},
 	];
 }
-

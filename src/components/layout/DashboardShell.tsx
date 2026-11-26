@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { type ReactNode, useId, useState } from "react";
+import { useLogout } from "#/features/auth/useLogout";
 import { BrandLogo } from "../ui/BrandLogo";
 import { Button } from "../ui/Button";
 import { StatusBadge } from "../ui/StatusBadge";
@@ -40,6 +41,9 @@ export function DashboardShell({
 	children,
 }: DashboardShellProps) {
 	const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+	const logout = useLogout();
+	onLogout ??= logout.run;
+	isLoggingOut ||= logout.busy;
 	const mobileDrawerId = useId();
 
 	const userSummary = (
@@ -58,6 +62,7 @@ export function DashboardShell({
 
 	return (
 		<div className="flex min-h-dvh flex-col bg-slate-50 text-slate-900">
+			{logout.error ? <p role="alert">{logout.error}</p> : null}
 			<a href="#dashboard-content" className="skip-link visually-hidden">
 				Skip to dashboard content
 			</a>

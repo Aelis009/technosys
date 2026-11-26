@@ -19,4 +19,7 @@ export const serverEnvSchema = z.object({
 	TWILIO_ACCOUNT_SID: z.string().optional(),
 	TWILIO_AUTH_TOKEN: z.string().optional(),
 	TWILIO_PHONE_NUMBER: z.string().optional(),
+	CLOUDINARY_CLOUD_NAME: z.string().optional(),
+	CLOUDINARY_API_KEY: z.string().optional(),
+	CLOUDINARY_API_SECRET: z.string().optional(),
 });

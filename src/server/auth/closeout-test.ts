@@ -27,6 +27,7 @@ import {
 	clearLoginAttempts,
 	recordFailedAttempt,
 } from "./loginAttempts.ts";
+import { hashPassword } from "./password.ts";
 
 if (getServerEnv().NODE_ENV !== "development") {
 	throw new Error("Run against a development database only.");
@@ -164,7 +165,7 @@ test("Stage 6 database and request closeout", async (t) => {
 	const techMobile = await newMobile();
 
 	await t.test(
-		"registration verifies OTP purpose, mobile, and value; persists pending + active without a session",
+		"legacy registration rejects client document metadata; create a separate technician login fixture",
 		async () => {
 			const form = {
 				name: "Stage 6 Fixture",
@@ -181,32 +182,11 @@ test("Stage 6 database and request closeout", async (t) => {
 				ifscCode: "SBIN0001234",
 				isMobileVerified: true,
 			};
-			const omitted = await call(tech.registerTechnician, form);
-			assert.match(omitted.error?.message ?? "", /otp/);
-			const customerOtp = await issue(
-				customer.requestCustomerLoginOtp,
-				techMobile,
-			);
-			const wrongPurpose = await call(tech.registerTechnician, {
+			const rejected = await call(tech.registerTechnician, {
 				...form,
-				otp: customerOtp,
+				otp: "123456",
 			});
-			assert.match(wrongPurpose.error?.message ?? "", /No pending OTP/);
-			const otp = await issue(
-				tech.requestTechnicianRegistrationOtp,
-				techMobile,
-			);
-			const wrongMobile = await call(tech.registerTechnician, {
-				...form,
-				mobile: await newMobile(),
-				otp,
-			});
-			assert.match(wrongMobile.error?.message ?? "", /No pending OTP/);
-			const wrong = await call(tech.registerTechnician, {
-				...form,
-				otp: otp === "000000" ? "000001" : "000000",
-			});
-			assert.match(wrong.error?.message ?? "", /Incorrect OTP/);
+			assert.match(rejected.error?.message ?? "", /secure registration/i);
 			assert.equal(
 				(await db.select().from(users).where(eq(users.mobile, techMobile)))
 					.length,
@@ -214,26 +194,31 @@ test("Stage 6 database and request closeout", async (t) => {
 			);
 			const rejectedOrigin = await call(
 				tech.registerTechnician,
-				{ ...form, otp },
+				{ ...form, otp: "123456" },
 				"https://example.test",
 			);
 			assert.equal(rejectedOrigin.status, 403);
 			assert.equal(rejectedOrigin.setCookie, null);
-			const registered = await call(tech.registerTechnician, { ...form, otp });
-			assert.ifError(registered.error);
-			assert.deepEqual(registered.result, { success: true });
-			assert.equal(registered.setCookie, null);
+			assert.equal(rejected.setCookie, null);
 			const [user] = await db
-				.select()
-				.from(users)
-				.where(eq(users.mobile, techMobile));
-			assert.equal(user.isMobileVerified, true);
-			const [profile] = await db
-				.select()
-				.from(technicianProfiles)
-				.where(eq(technicianProfiles.userId, user.id));
-			assert.equal(profile.verificationStatus, "pending");
-			assert.equal(profile.activeStatus, "active");
+				.insert(users)
+				.values({
+					name: "Stage 6 Fixture",
+					email,
+					mobile: techMobile,
+					passwordHash: await hashPassword(password),
+					isMobileVerified: true,
+					isActive: true,
+				})
+				.returning();
+			const roleId = roleIds.get("technician");
+			assert.ok(roleId);
+			await db.insert(userRoles).values({ userId: user.id, roleId });
+			await db.insert(technicianProfiles).values({
+				userId: user.id,
+				verificationStatus: "pending",
+				activeStatus: "active",
+			});
 			assert.equal(
 				(await db.select().from(sessions).where(eq(sessions.userId, user.id)))
 					.length,

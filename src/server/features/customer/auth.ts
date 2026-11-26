@@ -9,17 +9,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../../../db/index.ts";
-import {
-	customerProfiles,
-	otpVerifications,
-	roles,
-	userRoles,
-	users,
-} from "../../../db/schema.ts";
-import { csrfMiddleware } from "../../auth/csrf.ts";
-import { requestOtp, verifyOtp } from "../../auth/otp.ts";
-import { createSession } from "../../auth/session.ts";
+import { csrfMiddleware } from "../../auth/csrfMiddleware.ts";
 
 // ─── validation schemas ───────────────────────────────────────────────────────
 
@@ -48,6 +38,7 @@ export const requestCustomerLoginOtp = createServerFn({ method: "POST" })
 	.middleware([csrfMiddleware])
 	.validator((raw: unknown) => requestOtpInputSchema.parse(raw))
 	.handler(async ({ data }) => {
+		const { requestOtp } = await import("../../auth/otp.ts");
 		const result = await requestOtp({
 			mobile: data.mobile,
 			purpose: "customer_login",
@@ -61,6 +52,11 @@ export const verifyCustomerLoginOtp = createServerFn({ method: "POST" })
 	.middleware([csrfMiddleware])
 	.validator((raw: unknown) => verifyOtpInputSchema.parse(raw))
 	.handler(async ({ data }) => {
+		const { db } = await import("../../../db/index.ts");
+		const { customerProfiles, otpVerifications, roles, userRoles, users } =
+			await import("../../../db/schema.ts");
+		const { verifyOtp } = await import("../../auth/otp.ts");
+		const { createSession } = await import("../../auth/session.ts");
 		// 1. Verify the OTP (throws OtpError on failure)
 		const { otpRecordId } = await verifyOtp({
 			mobile: data.mobile,

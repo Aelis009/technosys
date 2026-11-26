@@ -1,6 +1,10 @@
+import { getRouteApi, Link } from "@tanstack/react-router";
 import { Card, SectionHeading } from "#/components/ui";
 
+const rootRoute = getRouteApi("__root__");
+
 export function TechnicianBenefitsSection() {
+	const { registrationReady } = rootRoute.useRouteContext();
 	return (
 		<section
 			id="technicians"
@@ -18,7 +22,11 @@ export function TechnicianBenefitsSection() {
 					network.
 				</p>
 				<p className="mt-auto rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700">
-					Technician registration · Coming soon
+					{registrationReady ? (
+						<Link to="/technician/register">Technician registration</Link>
+					) : (
+						"Technician registration · Coming soon"
+					)}
 				</p>
 			</Card>
 		</section>
