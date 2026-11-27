@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
-// This is deliberately not environment-controlled. A successful credentials
-// ping does not establish authenticated-asset privacy or delivery safety.
-// Enable only after a separate live private-delivery security closeout.
+// A credentials ping alone is not enough: the registration server verifies
+// authenticated delivery and denial of unsigned access before opening the form.
 export const getTechnicianRegistrationAvailability = createServerFn({
 	method: "GET",
 }).handler(async () => {

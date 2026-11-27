@@ -37,17 +37,17 @@ const allowedFieldNames = [
 	"password",
 	"confirmPassword",
 	"mobile",
-	"otp",
+	"mobileVerificationToken",
 	"serviceCategoryId",
 	"gender",
 	"dateOfBirth",
-	"houseNumber",
-	"street",
+	"addressLine",
 	"area",
 	"city",
 	"state",
 	"pincode",
-	"documentType",
+	"latitude",
+	"longitude",
 	"accountHolderName",
 	"accountNumber",
 	"ifscCode",
@@ -242,7 +242,12 @@ async function parseMultipartForm(formData: FormData) {
 		});
 	}
 	const document = await readImage("document", "identity document");
-	const profilePhoto = await readImage("profilePhoto", "profile photo");
+	const photo = formData.get("profilePhoto");
+	const profilePhoto =
+		photo === null ||
+		(isFileLike(photo) && photo.name === "" && photo.size === 0)
+			? undefined
+			: await readImage("profilePhoto", "profile photo");
 	return { fields, document, profilePhoto };
 }
 

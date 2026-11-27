@@ -1,8 +1,8 @@
 /**
- * OTP service – generates, hashes (HMAC-SHA256), persists, and atomically verifies one-time passwords.
+ * OTP service – persists local challenges and atomically records verification.
  *
  * Dev mode:  raw OTP is returned in the server-function response (never touches the browser in prod).
- * Prod mode: OTP is sent via Twilio Programmable Messaging REST API using native fetch; raw value is never returned or logged.
+ * Prod mode: Twilio Verify generates, sends, and checks the code.
  */
 
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
@@ -10,6 +10,14 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../../db/index.ts";
 import { otpVerifications } from "../../db/schema.ts";
 import { getServerEnv } from "../env.ts";
+import {
+	checkTwilioVerification,
+	startTwilioVerification,
+	twilioVerifyConfig,
+	twilioVerifyConfigIssue,
+	usesTwilioVerify,
+	verificationSidPattern,
+} from "./twilioVerify.ts";
 
 // ─── constants ──────────────────────────────────────────────────────────────
 
@@ -71,43 +79,7 @@ export function verifyOtpHash(
 	return timingSafeEqual(expectedBuf, actualBuf);
 }
 
-async function sendTwilioSms(to: string, body: string): Promise<void> {
-	const env = getServerEnv();
-	const accountSid = env.TWILIO_ACCOUNT_SID?.trim();
-	const authToken = env.TWILIO_AUTH_TOKEN?.trim();
-	const fromNumber = env.TWILIO_PHONE_NUMBER?.trim();
-
-	if (!accountSid || !authToken || !fromNumber) {
-		throw new Error(
-			"Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER) are missing.",
-		);
-	}
-
-	const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`;
-	const authHeader = Buffer.from(`${accountSid}:${authToken}`).toString(
-		"base64",
-	);
-	const formattedTo = to.startsWith("+") ? to : `+91${to}`;
-
-	const payload = new URLSearchParams({
-		To: formattedTo,
-		From: fromNumber,
-		Body: body,
-	});
-
-	const response = await fetch(endpoint, {
-		method: "POST",
-		headers: {
-			Authorization: `Basic ${authHeader}`,
-			"Content-Type": "application/x-www-form-urlencoded",
-		},
-		body: payload.toString(),
-	});
-
-	if (!response.ok) {
-		throw new Error(`Twilio SMS API failed with status ${response.status}.`);
-	}
-}
+const VERIFY_PREFIX = "twilio-verify:";
 
 // ─── requestOtp ──────────────────────────────────────────────────────────────
 
@@ -120,12 +92,12 @@ export interface RequestOtpResult {
 }
 
 /**
- * Generates an OTP for `mobile` and `purpose`.
+ * Starts an OTP challenge for `mobile` and `purpose`.
  * - Enforces 60-second resend cooldown.
  * - Invalidates previous unused OTPs for the same contact and purpose.
- * - Stores HMAC-SHA256 hash with 5-minute expiry.
+ * - Stores a local code hash or Twilio verification reference with 5-minute expiry.
  * - Development mode: returns raw OTP in result.
- * - Prod mode: sends via Twilio Programmable Messaging REST API using native fetch.
+ * - Prod mode: sends via Twilio Verify.
  */
 export async function requestOtp({
 	mobile,
@@ -135,22 +107,20 @@ export async function requestOtp({
 	purpose: OtpPurpose;
 }): Promise<RequestOtpResult> {
 	const env = getServerEnv();
-	const otp = generateOtp();
-	const otpHash = hashOtp(otp, env.OTP_SECRET);
+	const useVerify = usesTwilioVerify(env);
+	const config = useVerify ? twilioVerifyConfig(env) : null;
 
-	if (env.NODE_ENV === "production") {
-		if (
-			!env.TWILIO_ACCOUNT_SID?.trim() ||
-			!env.TWILIO_AUTH_TOKEN?.trim() ||
-			!env.TWILIO_PHONE_NUMBER?.trim()
-		) {
-			console.error("[OTP] Missing Twilio production configuration.");
-			throw new OtpError(
-				"SEND_FAILED",
-				"SMS service is currently unavailable. Please try again later.",
-			);
-		}
+	if (useVerify && !config) {
+		console.error("[OTP]", twilioVerifyConfigIssue(env));
+		throw new OtpError(
+			"SEND_FAILED",
+			"SMS service is currently unavailable. Please try again later.",
+		);
 	}
+	const otp = useVerify ? undefined : generateOtp();
+	// Reserve the cooldown before sending. The pending marker cannot be verified.
+	const otpHash =
+		otp === undefined ? VERIFY_PREFIX : hashOtp(otp, env.OTP_SECRET);
 
 	const txResult = await db.transaction(async (tx) => {
 		// Serialize issuance even when there is not yet a row to lock.
@@ -197,17 +167,20 @@ export async function requestOtp({
 				),
 			);
 
-		await tx.insert(otpVerifications).values({
-			contactType: "mobile",
-			contactValue: mobile,
-			purpose,
-			otpHash,
-			// Use the same clock for both timestamps so clock skew cannot change the TTL.
-			createdAt: now,
-			expiresAt: new Date(now.getTime() + OTP_EXPIRY_MS),
-		});
+		const [record] = await tx
+			.insert(otpVerifications)
+			.values({
+				contactType: "mobile",
+				contactValue: mobile,
+				purpose,
+				otpHash,
+				// Use the same clock for both timestamps so clock skew cannot change the TTL.
+				createdAt: now,
+				expiresAt: new Date(now.getTime() + OTP_EXPIRY_MS),
+			})
+			.returning({ id: otpVerifications.id });
 
-		return { ok: true as const };
+		return { ok: true as const, id: record.id };
 	});
 
 	if (!txResult.ok) {
@@ -217,12 +190,10 @@ export async function requestOtp({
 		);
 	}
 
-	if (env.NODE_ENV === "production") {
+	if (config) {
+		let sid: string;
 		try {
-			await sendTwilioSms(
-				mobile,
-				`Your Technosys OTP is ${otp}. It expires in 5 minutes. Do not share it with anyone.`,
-			);
+			sid = await startTwilioVerification(config, mobile);
 		} catch (error) {
 			// Never log raw OTP or Twilio secrets
 			console.error(
@@ -234,6 +205,10 @@ export async function requestOtp({
 				"We could not send the OTP. Please try again shortly.",
 			);
 		}
+		await db
+			.update(otpVerifications)
+			.set({ otpHash: `${VERIFY_PREFIX}${sid}` })
+			.where(eq(otpVerifications.id, txResult.id));
 		return { success: true };
 	}
 
@@ -249,7 +224,7 @@ type VerifyTxOutcome =
 	| { ok: false; code: OtpErrorCode; message: string };
 
 /**
- * Atomically verifies a submitted OTP against the stored HMAC-SHA256 hash.
+ * Atomically verifies a submitted OTP against its local hash or Twilio challenge.
  * Uses a transaction with `SELECT ... FOR UPDATE` so concurrent requests cannot
  * consume the same OTP twice, and failed attempts are persisted atomically.
  */
@@ -264,6 +239,9 @@ export async function verifyOtp({
 }): Promise<{ otpRecordId: string }> {
 	const env = getServerEnv();
 	const outcome = await db.transaction(async (tx): Promise<VerifyTxOutcome> => {
+		await tx.execute(
+			sql`select pg_advisory_xact_lock(hashtextextended(${`otp:${purpose}:${mobile}`}, 0))`,
+		);
 		// Lock the most recent OTP row for this contact + purpose
 		const [record] = await tx
 			.select({
@@ -310,7 +288,55 @@ export async function verifyOtp({
 			};
 		}
 
-		const isValid = verifyOtpHash(otp, record.otpHash, env.OTP_SECRET);
+		let isValid: boolean;
+		if (usesTwilioVerify(env)) {
+			const sid = record.otpHash.startsWith(VERIFY_PREFIX)
+				? record.otpHash.slice(VERIFY_PREFIX.length)
+				: "";
+			if (!verificationSidPattern.test(sid)) {
+				return {
+					ok: false,
+					code: "EXPIRED",
+					message: "No pending OTP found. Please request a new one.",
+				};
+			}
+			const config = twilioVerifyConfig(env);
+			let status: Awaited<ReturnType<typeof checkTwilioVerification>>;
+			try {
+				if (!config) throw new Error(twilioVerifyConfigIssue(env));
+				status = await checkTwilioVerification(config, sid, mobile, otp);
+			} catch (error) {
+				console.error(
+					"[OTP] Twilio check failed:",
+					error instanceof Error ? error.message : "Unknown error",
+				);
+				return {
+					ok: false,
+					code: "SEND_FAILED",
+					message: "We could not check the OTP. Please try again shortly.",
+				};
+			}
+			if (status === "expired" || status === "max-attempts") {
+				await tx
+					.update(otpVerifications)
+					.set({ expiresAt: now })
+					.where(eq(otpVerifications.id, record.id));
+				return status === "expired"
+					? {
+							ok: false,
+							code: "EXPIRED",
+							message: "Your OTP has expired. Please request a new one.",
+						}
+					: {
+							ok: false,
+							code: "MAX_ATTEMPTS",
+							message: "Too many incorrect attempts. Please request a new one.",
+						};
+			}
+			isValid = status === "approved";
+		} else {
+			isValid = verifyOtpHash(otp, record.otpHash, env.OTP_SECRET);
+		}
 
 		if (!isValid) {
 			const nextAttempts = record.attempts + 1;

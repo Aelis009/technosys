@@ -15,6 +15,13 @@
       "when": 1795606214021,
       "tag": "0001_steady_silver_fox",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795769577624,
+      "tag": "0002_technician_address_line",
+      "breakpoints": true
     }
   ]
 }

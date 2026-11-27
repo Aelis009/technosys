@@ -18,8 +18,10 @@ export const serverEnvSchema = z.object({
 	// Twilio – required in production, optional in development (OTP returned in response)
 	TWILIO_ACCOUNT_SID: z.string().optional(),
 	TWILIO_AUTH_TOKEN: z.string().optional(),
-	TWILIO_PHONE_NUMBER: z.string().optional(),
+	TWILIO_VERIFY_SERVICE_SID: z.string().optional(),
+	TWILIO_VERIFY_IN_DEV: z.enum(["0", "1"]).default("0"),
 	CLOUDINARY_CLOUD_NAME: z.string().optional(),
 	CLOUDINARY_API_KEY: z.string().optional(),
 	CLOUDINARY_API_SECRET: z.string().optional(),
+	REVERSE_GEOCODER_URL: z.string().optional(),
 });

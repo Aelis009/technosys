@@ -25,7 +25,7 @@ interface DashboardShellProps {
 	pageActions?: ReactNode;
 	children: ReactNode;
 }
-
+ 
 export function DashboardShell({
 	homeTo = "/",
 	portalTitle,

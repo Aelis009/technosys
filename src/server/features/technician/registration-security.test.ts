@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { getTechnicianNavItems } from "../../../components/layout/navigation.ts";
 import {
 	roles,
 	serviceCategories,
@@ -7,6 +8,7 @@ import {
 	technicianProfiles,
 	users,
 } from "../../../db/schema.ts";
+import { canAccessTechnicianDashboard } from "../../auth/guards.ts";
 import { AuthenticationError, AuthorizationError } from "../../auth/session.ts";
 import { uploadIdentityDocument } from "../../cloudinary.ts";
 import { deliverTechnicianDocument } from "./documentDelivery.ts";
@@ -14,9 +16,11 @@ import {
 	MAX_IDENTITY_DOCUMENT_BYTES,
 	validateIdentityDocument,
 } from "./identityDocument.ts";
+import { verifyPrivateUploads } from "./privateUploadReadiness.ts";
 import {
 	registerTechnicianWithIdentityDocument,
 	requireRegistrationCloudinary,
+	technicianRegistrationFieldsSchema,
 } from "./registration.ts";
 import {
 	handleTechnicianRegistrationRequest,
@@ -110,19 +114,113 @@ const fields = {
 	password: "password123",
 	confirmPassword: "password123",
 	mobile: "9876543210",
-	otp: "123456",
+	mobileVerificationToken: `11111111-1111-4111-8111-111111111111.1900000000000.${"a".repeat(64)}`,
 	serviceCategoryId: "11111111-1111-4111-8111-111111111111",
-	houseNumber: "12",
-	street: "Example Road",
-	area: "Example Area",
+	addressLine: "Flat 12, Green Society",
+	area: "Hirabag",
 	city: "Surat",
 	state: "Gujarat",
 	pincode: "395001",
-	documentType: "identity",
 	accountHolderName: "Fixture Person",
 	accountNumber: "1234567890",
 	ifscCode: "SBIN0001234",
 };
+
+test("registration validates required contact, password, address and bank details", () => {
+	assert.equal(
+		technicianRegistrationFieldsSchema.safeParse(fields).success,
+		true,
+	);
+	for (const [key, value] of Object.entries({
+		name: " ",
+		email: "invalid",
+		mobile: "123",
+		mobileVerificationToken: "12345",
+		confirmPassword: "different",
+		serviceCategoryId: "invalid",
+		addressLine: "",
+		area: "",
+		city: "",
+		state: "",
+		pincode: "000000",
+		accountHolderName: "",
+		accountNumber: "123",
+		ifscCode: "invalid",
+	})) {
+		assert.equal(
+			technicianRegistrationFieldsSchema.safeParse({ ...fields, [key]: value })
+				.success,
+			false,
+			key,
+		);
+	}
+});
+
+test("optional coordinates are paired, strictly bounded and normalized", () => {
+	for (const coordinates of [
+		{},
+		{ latitude: "", longitude: "" },
+		{ latitude: "", longitude: undefined },
+	])
+		assert.equal(
+			technicianRegistrationFieldsSchema.safeParse({
+				...fields,
+				...coordinates,
+			}).success,
+			true,
+		);
+	for (const coordinates of [
+		{ latitude: "1" },
+		{ longitude: "1" },
+		{ latitude: "", longitude: "1" },
+		{ latitude: "90.0000000000000001", longitude: "0" },
+		{ latitude: "-90.01", longitude: "0" },
+		{ latitude: "0", longitude: "180.00001" },
+		{ latitude: "NaN", longitude: "0" },
+		{ latitude: "1e1", longitude: "0" },
+	])
+		assert.equal(
+			technicianRegistrationFieldsSchema.safeParse({
+				...fields,
+				...coordinates,
+			}).success,
+			false,
+		);
+	const parsed = technicianRegistrationFieldsSchema.parse({
+		...fields,
+		latitude: "21.17023456",
+		longitude: "-180",
+	});
+	assert.equal(parsed.latitude, "21.1702346");
+	assert.equal(parsed.longitude, "-180.0000000");
+});
+
+test("incoming requests replace application status for approved active technicians", () => {
+	for (const verificationStatus of [
+		"pending",
+		"rejected",
+		"approved",
+	] as const) {
+		for (const activeStatus of ["active", "inactive", "suspended"] as const) {
+			const status = { verificationStatus, activeStatus };
+			const allowed =
+				verificationStatus === "approved" && activeStatus === "active";
+			assert.equal(canAccessTechnicianDashboard(status), allowed);
+			const nav = getTechnicianNavItems({
+				id: "fixture",
+				name: "Fixture",
+				roles: ["technician"],
+				technicianStatus: status,
+			});
+			assert.equal(nav[0]?.id, allowed ? "incoming-requests" : "status");
+			assert.equal(
+				nav.some((item) => item.id === "status"),
+				!allowed,
+			);
+			assert.ok(nav.slice(1).every((item) => item.comingSoon));
+		}
+	}
+});
 const config = {
 	cloudName: "fixture",
 	apiKey: "fixture",
@@ -175,7 +273,11 @@ function makeFake(failTransaction = false, categoryActive = true) {
 						});
 					},
 				}),
-				update: () => ({ set: () => ({ where: async () => undefined }) }),
+				update: () => ({
+					set: () => ({
+						where: () => ({ returning: async () => [{ id: "otp" }] }),
+					}),
+				}),
 			};
 			await run(tx);
 		},
@@ -184,10 +286,9 @@ function makeFake(failTransaction = false, categoryActive = true) {
 		database: database as unknown as NonNullable<
 			Parameters<typeof registerTechnicianWithIdentityDocument>[1]
 		>["database"],
-		verify: async (input: { mobile: string; otp: string; purpose: string }) => {
+		verify: async (input: { mobile: string; token: string }) => {
 			assert.equal(input.mobile, fields.mobile);
-			assert.equal(input.otp, fields.otp);
-			assert.equal(input.purpose, "technician_mobile_verify");
+			assert.equal(input.token, fields.mobileVerificationToken);
 			verified = true;
 			return { otpRecordId: "otp" };
 		},
@@ -225,6 +326,8 @@ test("valid multipart application uses validated data and provider metadata", as
 	const fake = makeFake();
 	const form = new FormData();
 	for (const [key, value] of Object.entries(fields)) form.set(key, value);
+	form.set("latitude", "21.17023456");
+	form.set("longitude", "72.8311");
 	form.set("document", new Blob([png], { type: "image/png" }), "fixture.png");
 	form.set("profilePhoto", new Blob([png], { type: "image/png" }), "photo.png");
 	const response = await handleTechnicianRegistrationRequest(
@@ -253,19 +356,26 @@ test("valid multipart application uses validated data and provider metadata", as
 	);
 	assert.ok(
 		fake.inserts.some(
-			({ value }) => value.pincode === "395001" && value.isDefault === true,
+			({ value }) =>
+				value.pincode === "395001" &&
+				value.addressLine === fields.addressLine &&
+				value.area === fields.area &&
+				value.isDefault === true &&
+				value.latitude === "21.1702346" &&
+				value.longitude === "72.8311000",
 		),
 	);
 	const stored = fake.inserts.find(
 		(entry) => entry.table === technicianDocuments,
 	)?.value;
+	assert.equal(stored?.documentType, "identity");
 	assert.equal(
 		stored?.cloudinaryPublicId,
 		"technosys/technician-documents/fixture",
 	);
 });
 
-test("transaction failure triggers provider cleanup; default readiness stays closed", async () => {
+test("transaction failure triggers provider cleanup", async () => {
 	const fake = makeFake(true);
 	await assert.rejects(
 		registerTechnicianWithIdentityDocument(
@@ -278,7 +388,62 @@ test("transaction failure triggers provider cleanup; default readiness stays clo
 		"technosys/technician-documents/fixture",
 		"technosys/technician-photos/fixture",
 	]);
-	await assert.rejects(requireRegistrationCloudinary(), /not available/i);
+});
+
+test("registration readiness requires credentials and successful private delivery", async () => {
+	await assert.rejects(
+		requireRegistrationCloudinary(() => null),
+		/not available/i,
+	);
+	await assert.rejects(
+		requireRegistrationCloudinary(
+			() => config,
+			async () => false,
+		),
+		/not available/i,
+	);
+	assert.equal(
+		await requireRegistrationCloudinary(
+			() => config,
+			async () => true,
+		),
+		config,
+	);
+});
+
+test("storage probe requires unsigned denial, correct signed bytes and cleanup", async () => {
+	for (const scenario of [
+		"private",
+		"public",
+		"wrong-image",
+		"cleanup-failed",
+	]) {
+		let bytes: Uint8Array = new Uint8Array();
+		let cleanups = 0;
+		const ready = await verifyPrivateUploads(config, {
+			upload: async (image) => {
+				bytes = image.bytes;
+				return {
+					publicId: "technosys/technician-documents/probe",
+					secureUrl: "https://example.test/probe.png",
+					format: "png",
+					bytes: bytes.length,
+				};
+			},
+			request: async () =>
+				new Response(null, { status: scenario === "public" ? 200 : 403 }),
+			deliver: async () => ({
+				bytes: new Uint8Array(scenario === "wrong-image" ? [0] : bytes),
+				mime: "image/png",
+			}),
+			remove: async () => {
+				cleanups++;
+				if (scenario === "cleanup-failed") throw new Error("test cleanup");
+			},
+		});
+		assert.equal(ready, scenario === "private", scenario);
+		assert.equal(cleanups, 1);
+	}
 });
 
 test("inactive categories are rejected before OTP or upload", async () => {
@@ -320,8 +485,35 @@ test("failed profile photo upload removes the previously uploaded identity image
 	assert.equal(fake.inserts.length, 0);
 });
 
-test("registration rejects missing address or profile photo before touching storage", async () => {
-	for (const missing of ["area", "profilePhoto"]) {
+test("registration succeeds without a profile photo and does not upload one", async () => {
+	const fake = makeFake();
+	const form = new FormData();
+	for (const [key, value] of Object.entries(fields)) form.set(key, value);
+	form.set("document", new Blob([png], { type: "image/png" }), "fixture.png");
+	const response = await handleTechnicianRegistrationRequest(
+		new Request("https://example.test/api/technician/register", {
+			method: "POST",
+			headers: { origin: "https://example.test" },
+			body: form,
+		}),
+		{
+			requireConfig: async () => config,
+			register: (input) =>
+				registerTechnicianWithIdentityDocument(input, {
+					...fake.deps,
+					uploadPhoto: async () => assert.fail("No profile photo to upload"),
+				}),
+		},
+	);
+	assert.equal(response.status, 200);
+	const profile = fake.inserts.find(
+		({ table }) => table === technicianProfiles,
+	);
+	assert.equal(profile?.value.profileImagePublicId, null);
+});
+
+test("registration rejects missing address or ID proof before touching storage", async () => {
+	for (const missing of ["addressLine", "document"]) {
 		const form = new FormData();
 		for (const [key, value] of Object.entries(fields)) form.set(key, value);
 		form.set("document", new Blob([png], { type: "image/png" }), "fixture.png");
@@ -350,7 +542,7 @@ test("registration rejects missing address or profile photo before touching stor
 	}
 });
 
-test("default multipart registration is unavailable and invalid OTP never uploads", async () => {
+test("unavailable storage blocks registration and invalid OTP never uploads", async () => {
 	const form = new FormData();
 	for (const [key, value] of Object.entries(fields)) form.set(key, value);
 	form.set("document", new Blob([png], { type: "image/png" }), "fixture.png");
@@ -361,6 +553,10 @@ test("default multipart registration is unavailable and invalid OTP never upload
 			headers: { origin: "https://example.test" },
 			body: form,
 		}),
+		{
+			requireConfig: () => requireRegistrationCloudinary(() => null),
+			register: async () => assert.fail("Registration should stay closed"),
+		},
 	);
 	assert.equal(response.status, 503);
 	const fake = makeFake();

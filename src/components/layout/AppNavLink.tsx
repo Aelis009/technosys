@@ -1,4 +1,9 @@
-import { Link, type LinkProps, useRouterState } from "@tanstack/react-router";
+import {
+	Link,
+	type LinkProps,
+	useHydrated,
+	useRouterState,
+} from "@tanstack/react-router";
 import { useRef } from "react";
 import type { NavItem } from "./navigation";
 
@@ -14,9 +19,11 @@ export function AppNavLink({
 	onNavigate,
 }: AppNavLinkProps) {
 	const location = useRouterState({ select: (state) => state.location });
+	const hydrated = useHydrated();
 	const disclosure = useRef<HTMLDetailsElement>(null);
 	const summary = useRef<HTMLElement>(null);
-	const currentHash = location.hash.replace(/^#/, "");
+	// URL fragments are not sent to the server. Read them only after hydration.
+	const currentHash = hydrated ? location.hash.replace(/^#/, "") : "";
 
 	const isActive = (() => {
 		if (item.comingSoon) return false;
@@ -139,6 +146,9 @@ export function AppNavLink({
 		<Link
 			to={item.to as LinkProps["to"]}
 			hash={item.hash}
+			activeOptions={
+				item.exact ? { exact: true, includeHash: hydrated } : undefined
+			}
 			aria-current={isActive ? "page" : undefined}
 			onClick={onNavigate}
 			className={className}

@@ -140,7 +140,14 @@ test("shared staff login, route guards, rate limit and logout", async (t) => {
 		assert.equal(techPage.status === 307, index === 2 || index === 4);
 		if (index === 1 || index === 2) {
 			const status = await page("/technician/status", login.cookie);
-			assert.match(await status.text(), index === 1 ? /approved/ : /pending/);
+			if (index === 1) {
+				assert.equal(status.headers.get("location"), "/technician/dashboard");
+				const pageHtml = await techPage.text();
+				assert.match(pageHtml, /Incoming Requests/);
+				assert.doesNotMatch(pageHtml, /Application status/);
+			} else {
+				assert.match(await status.text(), /pending/);
+			}
 		}
 		const crossOrigin = await call(
 			admin.logoutCurrentUser,

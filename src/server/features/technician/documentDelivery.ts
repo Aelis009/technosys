@@ -35,11 +35,11 @@ const defaultDependencies: DeliveryDependencies = {
 	fetchDocument: fetchPrivateCloudinaryDocument,
 };
 
-async function fetchPrivateCloudinaryDocument(
+export async function fetchPrivateCloudinaryDocument(
 	metadata: DocumentMetadata,
 	folder = "technician-documents",
+	config = getCloudinaryConfig(),
 ) {
-	const config = getCloudinaryConfig();
 	const id = metadata.publicId;
 	// Only assets created by this application are eligible; never fetch stored URLs.
 	if (

@@ -324,57 +324,81 @@ describe("OTP database lifecycle & concurrency", () => {
 		assert.notEqual(custVerified.otpRecordId, techVerified.otpRecordId);
 	});
 
-	it("12. Production responses never contain raw OTP and use mocked fetch SMS", async () => {
+	it("12. Production uses Verify SMS and checks only the stored challenge", async () => {
 		const mobile = uniqueMobile("prod");
 		const originalEnv = { ...process.env };
 		const originalFetch = globalThis.fetch;
 
-		let fetchCalled = false;
-		let capturedUrl = "";
-		let capturedBody = "";
+		const calls: { url: string; params: URLSearchParams }[] = [];
+		const sid = `VE${"a".repeat(32)}`;
+		const serviceSid = `VA${"b".repeat(32)}`;
 
 		globalThis.fetch = (async (
 			input: RequestInfo | URL,
 			init?: RequestInit,
 		) => {
-			fetchCalled = true;
-			capturedUrl = typeof input === "string" ? input : input.toString();
-			capturedBody = typeof init?.body === "string" ? init.body : "";
-			return new Response(JSON.stringify({ sid: "SM_MOCK_123" }), {
-				status: 201,
-				headers: { "Content-Type": "application/json" },
-			});
+			const url = String(input);
+			assert.ok(init?.body instanceof URLSearchParams);
+			const params = init.body;
+			calls.push({ url, params });
+			const status =
+				url.endsWith("/Verifications") || params.get("Code") !== "123456"
+					? "pending"
+					: "approved";
+			return Response.json(
+				{ sid, status, to: `+91${mobile}` },
+				{
+					status: url.endsWith("/Verifications") ? 201 : 200,
+				},
+			);
 		}) as typeof fetch;
 
 		process.env.NODE_ENV = "production";
 		process.env.TWILIO_ACCOUNT_SID = "AC_TEST_MOCK_SID";
 		process.env.TWILIO_AUTH_TOKEN = "test_mock_auth_token";
-		process.env.TWILIO_PHONE_NUMBER = "+15005550006";
+		process.env.TWILIO_VERIFY_SERVICE_SID = serviceSid;
 
 		try {
 			const res = await requestOtp({ mobile, purpose: "customer_login" });
 			assert.equal(res.success, true);
 			assert.equal("devOtp" in res, false);
 			assert.equal(res.devOtp, undefined);
-			assert.equal(fetchCalled, true);
-			assert.match(
-				capturedUrl,
-				/^https:\/\/api\.twilio\.com\/2010-04-01\/Accounts\/AC_TEST_MOCK_SID\/Messages\.json$/,
+			const base = `https://verify.twilio.com/v2/Services/${serviceSid}`;
+			assert.equal(calls[0].url, `${base}/Verifications`);
+			assert.deepEqual(Object.fromEntries(calls[0].params), {
+				To: `+91${mobile}`,
+				Channel: "sms",
+			});
+			await assert.rejects(
+				verifyOtp({
+					mobile,
+					otp: "123456",
+					purpose: "technician_mobile_verify",
+				}),
+				{ code: "EXPIRED" },
 			);
-			assert.match(capturedBody, /expires\+in\+5\+minutes/i);
-
-			// Confirm the DB record actually exists and can be verified with the OTP sent in mocked SMS
-			const params = new URLSearchParams(capturedBody);
-			const smsBody = params.get("Body") ?? "";
-			const match = smsBody.match(/\b(\d{6})\b/);
-			assert.ok(match?.[1], "Mocked SMS body should contain 6-digit OTP");
+			assert.equal(calls.length, 1);
+			await assert.rejects(
+				verifyOtp({ mobile, otp: "654321", purpose: "customer_login" }),
+				{ code: "INVALID" },
+			);
 
 			const verified = await verifyOtp({
 				mobile,
-				otp: match[1],
+				otp: "123456",
 				purpose: "customer_login",
 			});
 			assert.ok(verified.otpRecordId);
+			assert.equal(calls[2].url, `${base}/VerificationCheck`);
+			assert.deepEqual(Object.fromEntries(calls[2].params), {
+				VerificationSid: sid,
+				Code: "123456",
+			});
+			await assert.rejects(
+				verifyOtp({ mobile, otp: "123456", purpose: "customer_login" }),
+				{ code: "EXPIRED" },
+			);
+			assert.equal(calls.length, 3);
 
 			// Confirm missing Twilio credentials fail closed in production
 			delete process.env.TWILIO_AUTH_TOKEN;

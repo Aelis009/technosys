@@ -1,11 +1,12 @@
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
-type ModalSize = "sm" | "md" | "lg";
+type ModalSize = "sm" | "md" | "lg" | "xl";
 
 const modalSizes: Record<ModalSize, string> = {
 	sm: "max-w-md",
 	md: "max-w-xl",
 	lg: "max-w-2xl",
+	xl: "max-w-4xl",
 };
 
 interface ModalProps {

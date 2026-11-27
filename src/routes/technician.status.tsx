@@ -7,6 +7,12 @@ export const Route = createFileRoute("/technician/status")({
 	beforeLoad: async () => {
 		const entry = await getEntryState();
 		if (entry.status === "guest") throw redirect({ to: "/technician/login" });
+		if (
+			entry.status === "authenticated" &&
+			entry.user.roles.includes("technician") &&
+			entry.eligible
+		)
+			throw redirect({ to: "/technician/dashboard" });
 		return { entry };
 	},
 	component: TechnicianStatus,

@@ -84,12 +84,11 @@ export function getTechnicianNavItems(user: LayoutUser): NavItem[] {
 		return [status];
 	return [
 		{
-			id: "dashboard",
-			label: "Dashboard",
+			id: "incoming-requests",
+			label: "Incoming Requests",
 			to: "/technician/dashboard",
 			exact: true,
 		},
-		status,
 		{
 			id: "availability",
 			label: "Availability",

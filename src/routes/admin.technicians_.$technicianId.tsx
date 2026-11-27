@@ -116,7 +116,24 @@ function TechnicianRequestDetail() {
 									[
 										"Address",
 										request.address
-											? Object.values(request.address).join(", ")
+											? [
+													request.address.addressLine,
+													request.address.area &&
+													!request.address.addressLine
+														.split(",")
+														.some(
+															(part) =>
+																part.trim().toLowerCase() ===
+																request.address?.area?.trim().toLowerCase(),
+														)
+														? request.address.area
+														: null,
+													request.address.city,
+													request.address.state,
+													request.address.pincode,
+												]
+													.filter(Boolean)
+													.join(", ")
 											: null,
 									],
 									["Applied", new Date(request.createdAt).toLocaleDateString()],
@@ -129,6 +146,20 @@ function TechnicianRequestDetail() {
 									</div>
 								))}
 							</dl>
+							{request.location && (
+								<p className="mt-4 text-sm">
+									Pinned location: {request.location.latitude},{" "}
+									{request.location.longitude}{" "}
+									<a
+										className="font-semibold text-brand-700 underline"
+										href={`https://www.openstreetmap.org/?mlat=${encodeURIComponent(request.location.latitude)}&mlon=${encodeURIComponent(request.location.longitude)}#map=17/${encodeURIComponent(request.location.latitude)}/${encodeURIComponent(request.location.longitude)}`}
+										target="_blank"
+										rel="noreferrer"
+									>
+										View on OpenStreetMap
+									</a>
+								</p>
+							)}
 						</section>
 						<section className="rounded-xl border border-slate-200 bg-white p-6">
 							<h2 className="mb-3 text-lg font-bold">Identity documents</h2>

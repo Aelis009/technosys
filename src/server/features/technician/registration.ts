@@ -8,7 +8,7 @@
  * verification "pending", active status "active", and no session is created.
  */
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../../db/index.ts";
 import {
@@ -23,7 +23,6 @@ import {
 	userRoles,
 	users,
 } from "../../../db/schema.ts";
-import { verifyOtp } from "../../auth/otp.ts";
 import { hashPassword } from "../../auth/password.ts";
 import {
 	type CloudinaryConfig,
@@ -33,19 +32,43 @@ import {
 	getCloudinaryConfig,
 	uploadIdentityDocument,
 	uploadTechnicianProfilePhoto,
-	verifyCloudinaryConfiguration,
 } from "../../cloudinary.ts";
-import {
-	encryptAccountNumber,
-	technicianRegistrationOtpPurpose,
-} from "./auth.ts";
+import { encryptAccountNumber } from "./auth.ts";
 import type { ValidIdentityDocument } from "./identityDocument.ts";
+import {
+	mobileVerificationTokenPattern,
+	verifyMobileVerificationProof,
+} from "./mobileVerificationProof.ts";
+import { hasVerifiedPrivateUploads } from "./privateUploadReadiness.ts";
 
 const indianMobileSchema = z
 	.string()
 	.trim()
 	.regex(/^(?:\+91)?[6-9]\d{9}$/, "Enter a valid Indian mobile number.")
 	.transform((mobile) => mobile.replace(/^\+91/, ""));
+
+const coordinate = (limit: number) =>
+	z
+		.string()
+		.trim()
+		.max(40)
+		.refine(
+			(value) =>
+				value === "" ||
+				(/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value) &&
+					(() => {
+						const [whole, fraction = ""] = value
+							.replace(/^[+-]/, "")
+							.split(".");
+						const integer = Number(whole || "0");
+						return (
+							integer < limit || (integer === limit && !/[1-9]/.test(fraction))
+						);
+					})()),
+			"Enter a valid coordinate within its permitted range.",
+		)
+		.transform((value) => (value === "" ? undefined : Number(value).toFixed(7)))
+		.optional();
 
 export const technicianRegistrationFieldsSchema = z
 	.object({
@@ -66,10 +89,10 @@ export const technicianRegistrationFieldsSchema = z
 			.max(128, "Password must be no more than 128 characters."),
 		confirmPassword: z.string(),
 		mobile: indianMobileSchema,
-		otp: z
+		mobileVerificationToken: z
 			.string()
 			.trim()
-			.regex(/^\d{6}$/, "Enter the six-digit OTP."),
+			.regex(mobileVerificationTokenPattern, "Verify your mobile number."),
 		serviceCategoryId: z.string().uuid("Select a valid service category."),
 		gender: z.enum(["male", "female", "other"]).optional(),
 		dateOfBirth: z
@@ -79,12 +102,7 @@ export const technicianRegistrationFieldsSchema = z
 				message: "Date of birth cannot be in the future.",
 			})
 			.optional(),
-		houseNumber: z
-			.string()
-			.trim()
-			.min(1, "Enter a house or flat number.")
-			.max(100),
-		street: z.string().trim().min(1, "Enter a street.").max(255),
+		addressLine: z.string().trim().min(1, "Enter your address.").max(550),
 		area: z.string().trim().min(1, "Enter an area.").max(150),
 		city: z.string().trim().min(1, "Enter a city.").max(100),
 		state: z.string().trim().min(1, "Enter a state.").max(100),
@@ -92,11 +110,8 @@ export const technicianRegistrationFieldsSchema = z
 			.string()
 			.trim()
 			.regex(/^[1-9]\d{5}$/, "Enter a valid six-digit PIN code."),
-		documentType: z
-			.string()
-			.trim()
-			.min(1, "Document type is required.")
-			.max(50),
+		latitude: coordinate(90),
+		longitude: coordinate(180),
 		accountHolderName: z
 			.string()
 			.trim()
@@ -121,7 +136,14 @@ export const technicianRegistrationFieldsSchema = z
 	.refine((data) => data.password === data.confirmPassword, {
 		message: "Passwords do not match.",
 		path: ["confirmPassword"],
-	});
+	})
+	.refine(
+		(data) => (data.latitude === undefined) === (data.longitude === undefined),
+		{
+			message: "Provide both latitude and longitude, or neither.",
+			path: ["latitude"],
+		},
+	);
 
 export type TechnicianRegistrationFields = z.infer<
 	typeof technicianRegistrationFieldsSchema
@@ -142,31 +164,28 @@ export class TechnicianRegistrationError extends Error {
 /**
  * Registration stays closed until the full private delivery flow is verified.
  */
-export async function requireRegistrationCloudinary(): Promise<CloudinaryConfig> {
-	// This code gate cannot be switched on through configuration or a request.
-	// Change it only after a live private-asset delivery security closeout.
-	if (!privateDeliveryVerified()) throw new CloudinaryConfigurationError();
-	const config = getCloudinaryConfig();
-	if (!config || !(await verifyCloudinaryConfiguration(config))) {
+export async function requireRegistrationCloudinary(
+	loadConfig = getCloudinaryConfig,
+	verify = hasVerifiedPrivateUploads,
+): Promise<CloudinaryConfig> {
+	const config = loadConfig();
+	if (!config || !(await verify(config))) {
 		throw new CloudinaryConfigurationError();
 	}
 	return config;
-}
-
-function privateDeliveryVerified(): boolean {
-	return false;
 }
 
 export async function registerTechnicianWithIdentityDocument(
 	input: {
 		fields: TechnicianRegistrationFields;
 		document: ValidIdentityDocument;
-		profilePhoto: ValidIdentityDocument;
+		profilePhoto?: ValidIdentityDocument;
 		config: CloudinaryConfig;
 	},
 	dependencies = {
 		database: db,
-		verify: verifyOtp,
+		verify: async (input: { mobile: string; token: string }) =>
+			verifyMobileVerificationProof(input),
 		hash: hashPassword,
 		encrypt: encryptAccountNumber,
 		upload: uploadIdentityDocument,
@@ -241,11 +260,10 @@ export async function registerTechnicianWithIdentityDocument(
 		);
 	}
 
-	// Purpose and mobile are checked by the existing atomic OTP service.
+	// Only a successful registration OTP check can mint proof for this number.
 	const { otpRecordId } = await dependencies.verify({
 		mobile: fields.mobile,
-		otp: fields.otp,
-		purpose: technicianRegistrationOtpPurpose,
+		token: fields.mobileVerificationToken,
 	});
 
 	const [passwordHash, accountNumberEncrypted] = await Promise.all([
@@ -259,11 +277,10 @@ export async function registerTechnicianWithIdentityDocument(
 	try {
 		const uploadedDocument = await dependencies.upload({ config, ...document });
 		uploadedIds.push(uploadedDocument.publicId);
-		const uploadedPhoto = await dependencies.uploadPhoto({
-			config,
-			...profilePhoto,
-		});
-		uploadedIds.push(uploadedPhoto.publicId);
+		const uploadedPhoto = profilePhoto
+			? await dependencies.uploadPhoto({ config, ...profilePhoto })
+			: undefined;
+		if (uploadedPhoto) uploadedIds.push(uploadedPhoto.publicId);
 		await db.transaction(async (tx) => {
 			const [category] = await tx
 				.select({ id: serviceCategories.id })
@@ -311,8 +328,8 @@ export async function registerTechnicianWithIdentityDocument(
 					userId,
 					gender: fields.gender ?? null,
 					dateOfBirth: fields.dateOfBirth ?? null,
-					profileImageUrl: uploadedPhoto.secureUrl,
-					profileImagePublicId: uploadedPhoto.publicId,
+					profileImageUrl: uploadedPhoto?.secureUrl ?? null,
+					profileImagePublicId: uploadedPhoto?.publicId ?? null,
 					verificationStatus: "pending",
 					activeStatus: "active",
 				})
@@ -327,12 +344,13 @@ export async function registerTechnicianWithIdentityDocument(
 			await tx.insert(addresses).values({
 				userId,
 				label: "Home",
-				houseNumber: fields.houseNumber,
-				street: fields.street,
+				addressLine: fields.addressLine,
 				area: fields.area,
 				city: fields.city,
 				state: fields.state,
 				pincode: fields.pincode,
+				latitude: fields.latitude ?? null,
+				longitude: fields.longitude ?? null,
 				isDefault: true,
 			});
 
@@ -343,7 +361,7 @@ export async function registerTechnicianWithIdentityDocument(
 
 			await tx.insert(technicianDocuments).values({
 				technicianId,
-				documentType: fields.documentType,
+				documentType: "identity",
 				documentUrl: uploadedDocument.secureUrl,
 				cloudinaryPublicId: uploadedDocument.publicId,
 				verificationStatus: "pending",
@@ -356,10 +374,26 @@ export async function registerTechnicianWithIdentityDocument(
 				ifscCode: fields.ifscCode,
 			});
 
-			await tx
+			const [claimedOtp] = await tx
 				.update(otpVerifications)
 				.set({ userId })
-				.where(eq(otpVerifications.id, otpRecordId));
+				.where(
+					and(
+						eq(otpVerifications.id, otpRecordId),
+						eq(otpVerifications.contactType, "mobile"),
+						eq(otpVerifications.contactValue, fields.mobile),
+						eq(otpVerifications.purpose, "technician_mobile_verify"),
+						isNotNull(otpVerifications.verifiedAt),
+						isNull(otpVerifications.userId),
+					),
+				)
+				.returning({ id: otpVerifications.id });
+			if (!claimedOtp)
+				throw new TechnicianRegistrationError(
+					400,
+					"MOBILE_VERIFICATION_USED",
+					"Please verify your mobile number again.",
+				);
 		});
 	} catch (error) {
 		const cleanup = await Promise.allSettled(

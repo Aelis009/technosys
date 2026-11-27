@@ -24,3 +24,38 @@ export const requestRegistrationOtp = createServerFn({ method: "POST" })
 			purpose: "technician_mobile_verify",
 		});
 	});
+
+export const verifyRegistrationOtp = createServerFn({ method: "POST" })
+	.middleware([csrfMiddleware])
+	.validator((raw: unknown) =>
+		z
+			.object({
+				mobile: z
+					.string()
+					.trim()
+					.regex(/^(?:\+91)?[6-9]\d{9}$/)
+					.transform((value) => value.replace(/^\+91/, "")),
+				otp: z.string().regex(/^\d{6}$/),
+			})
+			.parse(raw),
+	)
+	.handler(async ({ data }) => {
+		const { OtpError, verifyOtp } = await import("../../auth/otp.ts");
+		const { createMobileVerificationProof } = await import(
+			"./mobileVerificationProof.ts"
+		);
+		try {
+			const { otpRecordId } = await verifyOtp({
+				...data,
+				purpose: "technician_mobile_verify",
+			});
+			return {
+				success: true as const,
+				token: createMobileVerificationProof(data.mobile, otpRecordId),
+			};
+		} catch (error) {
+			if (error instanceof OtpError)
+				return { success: false as const, message: error.message };
+			throw error;
+		}
+	});

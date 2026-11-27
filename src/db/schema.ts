@@ -152,9 +152,10 @@ export const addresses = pgTable(
 			.notNull()
 			.references(() => users.id, { onDelete: "cascade" }),
 		label: varchar("label", { length: 50 }).notNull(),
-		houseNumber: varchar("house_number", { length: 100 }).notNull(),
-		street: varchar("street", { length: 255 }).notNull(),
-		area: varchar("area", { length: 150 }).notNull(),
+		addressLine: varchar("address_line", { length: 550 }).notNull(),
+		houseNumber: varchar("house_number", { length: 100 }),
+		street: varchar("street", { length: 255 }),
+		area: varchar("area", { length: 150 }),
 		city: varchar("city", { length: 100 }).notNull(),
 		state: varchar("state", { length: 100 }).notNull(),
 		pincode: varchar("pincode", { length: 15 }).notNull(),

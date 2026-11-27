@@ -11,9 +11,34 @@ npm run dev
 
 ## Environment Configuration
 
+The optional registration map uses the public OpenStreetMap standard tile service.
+Before production deployment, review and comply with its
+[tile usage policy](https://operations.osmfoundation.org/policies/tiles/), including
+attribution, caching and capacity requirements; use a suitable tile provider or
+self-host tiles if the public service is not appropriate for the expected traffic.
+Map tiles are requested directly by the visitor's browser from that provider.
+
+For optional address autofill, set `REVERSE_GEOCODER_URL` in the server
+environment to the full `/reverse` URL of an approved Nominatim-compatible
+service. Use HTTPS (HTTP is accepted only on loopback for local development).
+The server sends the confirmed pin, not form or account details. Do not use
+the public Nominatim instance for private address data; configure an approved
+provider or self-hosted service. With no endpoint, manual address entry works
+as before.
+
 Copy `.env.example` to `.env.local` and set `DATABASE_URL` to a PostgreSQL connection URL before running the application or Drizzle commands. Server-side configuration validates that the URL is present and uses the PostgreSQL protocol.
 
-The Cloudinary, Twilio, SMTP, and JWT variables are placeholders for later features and are not required by the current application. Keep credentials in `.env.local` or deployment environment settings; do not commit them.
+Keep credentials in `.env.local` or deployment environment settings; do not commit them.
+
+Production SMS OTPs use [Twilio Verify](https://www.twilio.com/docs/verify). Set
+`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_VERIFY_SERVICE_SID` (the `VA…`
+SID under **Identity → Verify → Services**, not a `VE…` ID from a test
+verification; use a six-digit code). A sender phone number is not needed.
+For a local real-SMS test, set `TWILIO_VERIFY_IN_DEV=1` in the shell running
+`npm run dev` (PowerShell: `$env:TWILIO_VERIFY_IN_DEV = "1"`). Don't set
+`NODE_ENV=production` in an env file or in the shell running `npm run dev`.
+Trial accounts can only send to eligible verified recipients. Close that
+shell or unset the flag to use local development OTPs again.
 
 ## Seeding Initial Database Data
 

@@ -181,24 +181,38 @@ export const getTechnicianRequest = createServerFn({ method: "GET" })
 				.limit(1),
 			db
 				.select({
-					houseNumber: addresses.houseNumber,
-					street: addresses.street,
+					addressLine: addresses.addressLine,
 					area: addresses.area,
 					city: addresses.city,
 					state: addresses.state,
 					pincode: addresses.pincode,
+					latitude: addresses.latitude,
+					longitude: addresses.longitude,
 				})
 				.from(addresses)
 				.innerJoin(p, eq(p.userId, addresses.userId))
 				.where(and(eq(p.id, data), eq(addresses.isDefault, true)))
 				.limit(1),
 		]);
+		const address = addressRows[0];
 		return {
 			...profile,
 			documents,
 			categories: categories.map((row) => row.name),
 			bank: banks[0] ?? null,
-			address: addressRows[0] ?? null,
+			address: address
+				? {
+						addressLine: address.addressLine,
+						area: address.area,
+						city: address.city,
+						state: address.state,
+						pincode: address.pincode,
+					}
+				: null,
+			location:
+				address?.latitude != null && address.longitude != null
+					? { latitude: address.latitude, longitude: address.longitude }
+					: null,
 		};
 	});
 

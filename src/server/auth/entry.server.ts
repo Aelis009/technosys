@@ -1,6 +1,10 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.ts";
-import { technicianProfiles } from "../../db/schema.ts";
+import {
+	serviceCategories,
+	technicianProfiles,
+	technicianServiceCategories,
+} from "../../db/schema.ts";
 import { canAccessTechnicianDashboard } from "./guards.ts";
 import { getCurrentUser } from "./session.ts";
 
@@ -24,11 +28,25 @@ export async function entryState() {
 				.where(eq(technicianProfiles.userId, user.id))
 				.limit(1);
 		}
+		const eligible = !!profile && canAccessTechnicianDashboard(profile);
+		const categories =
+			eligible && profile
+				? await db
+						.select({ name: serviceCategories.name })
+						.from(technicianServiceCategories)
+						.innerJoin(
+							serviceCategories,
+							eq(serviceCategories.id, technicianServiceCategories.categoryId),
+						)
+						.where(eq(technicianServiceCategories.technicianId, profile.id))
+						.orderBy(serviceCategories.name)
+				: [];
 		return {
 			status: "authenticated" as const,
 			user: { id: user.id, name: user.name ?? "Account", roles: user.roles },
 			profile: profile ?? null,
-			eligible: !!profile && canAccessTechnicianDashboard(profile),
+			eligible,
+			categories: categories.map((category) => category.name),
 		};
 	} catch {
 		return { status: "unavailable" as const };
