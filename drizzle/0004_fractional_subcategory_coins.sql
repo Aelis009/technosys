@@ -1,0 +1,1 @@
+ALTER TABLE "sub_service_categories" ALTER COLUMN "coins_required" SET DATA TYPE numeric(12, 2);

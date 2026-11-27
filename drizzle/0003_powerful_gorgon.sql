@@ -1,0 +1,2 @@
+ALTER TABLE "sub_service_categories" DROP CONSTRAINT "sub_service_categories_duration_positive_check";--> statement-breakpoint
+ALTER TABLE "sub_service_categories" DROP COLUMN "estimated_duration_minutes";

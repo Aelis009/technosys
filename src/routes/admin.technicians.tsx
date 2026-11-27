@@ -49,6 +49,7 @@ function TechnicianRequests() {
 		category: search.category,
 		page: String(data.page),
 	}).toString();
+	
 	return (
 		<AdminLayout user={entry.user} pageTitle="Technician requests">
 			<p className="mb-5 text-slate-600">

@@ -18,6 +18,7 @@ import { Route as CustomerLoginRouteImport } from './routes/customer.login'
 import { Route as CustomerProfileRouteImport } from './routes/customer.profile'
 import { Route as TechnicianDashboardRouteImport } from './routes/technician.dashboard'
 import { Route as TechnicianLoginRouteImport } from './routes/technician.login'
+import { Route as TechnicianProfileRouteImport } from './routes/technician.profile'
 import { Route as TechnicianRegisterRouteImport } from './routes/technician.register'
 import { Route as TechnicianStatusRouteImport } from './routes/technician.status'
 import { Route as AdminCategoriesSubcategoriesRouteImport } from './routes/admin.categories_.subcategories'
@@ -70,6 +71,11 @@ const TechnicianDashboardRoute = TechnicianDashboardRouteImport.update({
 const TechnicianLoginRoute = TechnicianLoginRouteImport.update({
   id: '/technician/login',
   path: '/technician/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TechnicianProfileRoute = TechnicianProfileRouteImport.update({
+  id: '/technician/profile',
+  path: '/technician/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TechnicianRegisterRoute = TechnicianRegisterRouteImport.update({
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/customer/profile': typeof CustomerProfileRoute
   '/technician/dashboard': typeof TechnicianDashboardRoute
   '/technician/login': typeof TechnicianLoginRoute
+  '/technician/profile': typeof TechnicianProfileRoute
   '/technician/register': typeof TechnicianRegisterRoute
   '/technician/status': typeof TechnicianStatusRoute
   '/admin/categories/subcategories': typeof AdminCategoriesSubcategoriesRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/customer/profile': typeof CustomerProfileRoute
   '/technician/dashboard': typeof TechnicianDashboardRoute
   '/technician/login': typeof TechnicianLoginRoute
+  '/technician/profile': typeof TechnicianProfileRoute
   '/technician/register': typeof TechnicianRegisterRoute
   '/technician/status': typeof TechnicianStatusRoute
   '/admin/categories/subcategories': typeof AdminCategoriesSubcategoriesRoute
@@ -166,6 +174,7 @@ export interface FileRoutesById {
   '/customer/profile': typeof CustomerProfileRoute
   '/technician/dashboard': typeof TechnicianDashboardRoute
   '/technician/login': typeof TechnicianLoginRoute
+  '/technician/profile': typeof TechnicianProfileRoute
   '/technician/register': typeof TechnicianRegisterRoute
   '/technician/status': typeof TechnicianStatusRoute
   '/admin/categories_/subcategories': typeof AdminCategoriesSubcategoriesRoute
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/customer/profile'
     | '/technician/dashboard'
     | '/technician/login'
+    | '/technician/profile'
     | '/technician/register'
     | '/technician/status'
     | '/admin/categories/subcategories'
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/customer/profile'
     | '/technician/dashboard'
     | '/technician/login'
+    | '/technician/profile'
     | '/technician/register'
     | '/technician/status'
     | '/admin/categories/subcategories'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/customer/profile'
     | '/technician/dashboard'
     | '/technician/login'
+    | '/technician/profile'
     | '/technician/register'
     | '/technician/status'
     | '/admin/categories_/subcategories'
@@ -245,6 +257,7 @@ export interface RootRouteChildren {
   CustomerProfileRoute: typeof CustomerProfileRoute
   TechnicianDashboardRoute: typeof TechnicianDashboardRoute
   TechnicianLoginRoute: typeof TechnicianLoginRoute
+  TechnicianProfileRoute: typeof TechnicianProfileRoute
   TechnicianRegisterRoute: typeof TechnicianRegisterRoute
   TechnicianStatusRoute: typeof TechnicianStatusRoute
   AdminCategoriesSubcategoriesRoute: typeof AdminCategoriesSubcategoriesRoute
@@ -320,6 +333,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TechnicianLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/technician/profile': {
+      id: '/technician/profile'
+      path: '/technician/profile'
+      fullPath: '/technician/profile'
+      preLoaderRoute: typeof TechnicianProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/technician/register': {
       id: '/technician/register'
       path: '/technician/register'
@@ -389,6 +409,7 @@ const rootRouteChildren: RootRouteChildren = {
   CustomerProfileRoute: CustomerProfileRoute,
   TechnicianDashboardRoute: TechnicianDashboardRoute,
   TechnicianLoginRoute: TechnicianLoginRoute,
+  TechnicianProfileRoute: TechnicianProfileRoute,
   TechnicianRegisterRoute: TechnicianRegisterRoute,
   TechnicianStatusRoute: TechnicianStatusRoute,
   AdminCategoriesSubcategoriesRoute: AdminCategoriesSubcategoriesRoute,

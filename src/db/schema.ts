@@ -336,8 +336,10 @@ export const subServiceCategories = pgTable(
 		name: varchar("name", { length: 200 }).notNull(),
 		description: text("description").notNull(),
 		price: numeric("price", { precision: 12, scale: 2 }).notNull(),
-		estimatedDurationMinutes: integer("estimated_duration_minutes").notNull(),
-		coinsRequired: integer("coins_required").notNull(),
+		coinsRequired: numeric("coins_required", {
+			precision: 12,
+			scale: 2,
+		}).notNull(),
 		imageUrl: text("image_url"),
 		imagePublicId: text("image_public_id"),
 		isActive: boolean("is_active").default(true).notNull(),
@@ -352,10 +354,6 @@ export const subServiceCategories = pgTable(
 		check(
 			"sub_service_categories_price_nonnegative_check",
 			sql`${table.price} >= 0`,
-		),
-		check(
-			"sub_service_categories_duration_positive_check",
-			sql`${table.estimatedDurationMinutes} > 0`,
 		),
 		check(
 			"sub_service_categories_coins_nonnegative_check",

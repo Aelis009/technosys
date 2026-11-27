@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@keyframes request-halo {
+	0%, 100% { opacity: 0.55; scale: 0.92; }
+	50% { opacity: 1; scale: 1.08; }
+}
+
 @theme {
 	--font-sans:
 		"Inter", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system,

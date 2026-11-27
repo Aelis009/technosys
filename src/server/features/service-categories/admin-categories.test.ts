@@ -37,8 +37,7 @@ const subInput = {
 	name: "Installation",
 	description: "Install a fixture",
 	price: "00021.5",
-	estimatedDurationMinutes: "45",
-	coinsRequired: "0",
+	coinsRequired: "0.5",
 };
 
 function request(
@@ -93,8 +92,17 @@ test("URL query normalization, literal search and page clamping", () => {
 test("numeric subcategory fields preserve decimal precision and enforce PostgreSQL bounds", () => {
 	const valid = saveSubcategorySchema.parse(subInput);
 	assert.equal(valid.price, "21.50");
-	assert.equal(valid.estimatedDurationMinutes, 45);
-	assert.equal(valid.coinsRequired, 0);
+	assert.equal(valid.coinsRequired, "0.50");
+	for (const [coinsRequired, expected] of [
+		["0", "0.00"],
+		["1.25", "1.25"],
+		["9999999999.99", "9999999999.99"],
+	]) {
+		assert.equal(
+			saveSubcategorySchema.parse({ ...subInput, coinsRequired }).coinsRequired,
+			expected,
+		);
+	}
 	assert.equal(
 		saveSubcategorySchema.parse({ ...subInput, price: "9999999999.99" }).price,
 		"9999999999.99",
@@ -105,14 +113,7 @@ test("numeric subcategory fields preserve decimal precision and enforce PostgreS
 			false,
 		);
 	}
-	for (const estimatedDurationMinutes of ["0", "2.5", "2147483648"]) {
-		assert.equal(
-			saveSubcategorySchema.safeParse({ ...subInput, estimatedDurationMinutes })
-				.success,
-			false,
-		);
-	}
-	for (const coinsRequired of ["-1", "1.5", "2147483648"]) {
+	for (const coinsRequired of ["-0.5", "1.005", "10000000000", "1e3", ""]) {
 		assert.equal(
 			saveSubcategorySchema.safeParse({ ...subInput, coinsRequired }).success,
 			false,
@@ -258,8 +259,7 @@ test("list queries the real schema with stable limits, separate filtered totals 
 					"Parent",
 					false,
 					"21.50",
-					45,
-					0,
+					"0.50",
 				],
 			];
 		if (text.startsWith("select")) return [[id, "Parent", false]];
@@ -273,7 +273,9 @@ test("list queries the real schema with stable limits, separate filtered totals 
 	assert.deepEqual(result.counts, { total: 50, active: 42, inactive: 8 });
 	assert.equal(result.totalItems, 22);
 	assert.equal(result.page, 2);
-	assert.equal(result.rows[0]?.kind, "sub");
+	const row = result.rows[0];
+	assert.equal(row?.kind, "sub");
+	assert.equal(row.coinsRequired, "0.50");
 	assert.deepEqual(result.parents, [{ id, name: "Parent", isActive: false }]);
 	assert.equal(
 		queries[0]?.text,
@@ -345,6 +347,7 @@ test("database saves check parent existence, preserve images on edits, and use u
 	);
 	const updates = queries.filter(({ text }) => text.startsWith("update"));
 	assert.match(updates[0].text, /update "sub_service_categories"/);
+	assert.ok(updates[0].params.includes("0.50"));
 	assert.doesNotMatch(updates[0].text, /image_(?:url|public_id)|"is_active"/);
 	assert.ok(updates[0].params.includes("21.50"));
 	assert.match(updates[1].text, /update "service_categories" set "is_active"/);

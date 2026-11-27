@@ -144,9 +144,16 @@ test("shared staff login, route guards, rate limit and logout", async (t) => {
 				assert.equal(status.headers.get("location"), "/technician/dashboard");
 				const pageHtml = await techPage.text();
 				assert.match(pageHtml, /Incoming Requests/);
+				assert.match(pageHtml, /No incoming requests/);
+				assert.doesNotMatch(pageHtml, /Service category/);
 				assert.doesNotMatch(pageHtml, /Application status/);
+				const profile = await page("/technician/profile", login.cookie);
+				assert.equal(profile.status, 200);
+				assert.match(await profile.text(), /Service category/);
 			} else {
 				assert.match(await status.text(), /pending/);
+				const profile = await page("/technician/profile", login.cookie);
+				assert.equal(profile.headers.get("location"), "/technician/status");
 			}
 		}
 		const crossOrigin = await call(

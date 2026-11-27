@@ -19,13 +19,14 @@ interface DashboardShellProps {
 	onLogout?: () => void;
 	isLoggingOut?: boolean;
 	headerSlot?: ReactNode;
+	accountMenu?: ReactNode;
 	sidebarFooter?: ReactNode;
 	pageTitle?: string;
 	pageDescription?: string;
 	pageActions?: ReactNode;
 	children: ReactNode;
 }
- 
+
 export function DashboardShell({
 	homeTo = "/",
 	portalTitle,
@@ -36,6 +37,7 @@ export function DashboardShell({
 	onLogout,
 	isLoggingOut = false,
 	headerSlot,
+	accountMenu,
 	sidebarFooter,
 	pageTitle,
 	pageDescription,
@@ -120,16 +122,18 @@ export function DashboardShell({
 							</div>
 						) : null}
 
-						<div className="hidden items-center gap-2.5 sm:flex">
-							<UserAvatar
-								name={user.name}
-								imageUrl={user.profileImageUrl}
-								size="sm"
-							/>
-							<span className="max-w-36 truncate text-sm font-medium text-slate-700">
-								{user.name}
-							</span>
-						</div>
+						{accountMenu ?? (
+							<div className="hidden items-center gap-2.5 sm:flex">
+								<UserAvatar
+									name={user.name}
+									imageUrl={user.profileImageUrl}
+									size="sm"
+								/>
+								<span className="max-w-36 truncate text-sm font-medium text-slate-700">
+									{user.name}
+								</span>
+							</div>
+						)}
 
 						{onLogout ? (
 							<Button

@@ -103,7 +103,6 @@ export async function listAdminCategories(
 					categoryName: main.name,
 					categoryIsActive: main.isActive,
 					price: sub.price,
-					estimatedDurationMinutes: sub.estimatedDurationMinutes,
 					coinsRequired: sub.coinsRequired,
 				})
 				.from(sub)
@@ -193,7 +192,6 @@ export async function saveAdminCategory(
 					categoryId: data.categoryId,
 					description: data.description,
 					price: data.price,
-					estimatedDurationMinutes: data.estimatedDurationMinutes,
 					coinsRequired: data.coinsRequired,
 				}
 			: null;

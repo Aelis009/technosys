@@ -23,7 +23,6 @@ import {
 	type MainCategoryRow,
 	maxCategoryDescriptionLength,
 	parseCategorySearch,
-	postgresIntMax,
 	type SubcategoryRow,
 } from "#/server/features/service-categories/admin-model";
 
@@ -363,15 +362,7 @@ function CategoryTable({
 }) {
 	const headings =
 		kind === "sub"
-			? [
-					"Subcategory",
-					"Main category",
-					"Price",
-					"Duration",
-					"Coins",
-					"Status",
-					"Actions",
-				]
+			? ["Subcategory", "Main category", "Price", "Coins", "Status", "Actions"]
 			: ["Main category", "Subcategories", "Status", "Actions"];
 	if (!list.rows.length)
 		return (
@@ -446,9 +437,6 @@ function CategoryTable({
 										{row.categoryIsActive ? "" : " (inactive)"}
 									</td>
 									<td className={`${cell} tabular-nums`}>{row.price}</td>
-									<td className={`${cell} whitespace-nowrap tabular-nums`}>
-										{row.estimatedDurationMinutes} min
-									</td>
 									<td className={`${cell} tabular-nums`}>
 										{row.coinsRequired}
 									</td>
@@ -562,7 +550,7 @@ function CategoryForm({
 					/>
 				</FormField>
 				{kind === "sub" && (
-					<div className="grid gap-3 sm:grid-cols-3">
+					<div className="grid gap-3 sm:grid-cols-2">
 						<FormField id="edit-category-price" label="Price" required>
 							<TextInput
 								id="edit-category-price"
@@ -573,30 +561,12 @@ function CategoryForm({
 								defaultValue={sub?.price}
 							/>
 						</FormField>
-						<FormField
-							id="edit-category-duration"
-							label="Duration (minutes)"
-							required
-						>
-							<TextInput
-								id="edit-category-duration"
-								name="estimatedDurationMinutes"
-								type="number"
-								min={1}
-								max={postgresIntMax}
-								step={1}
-								required
-								defaultValue={sub?.estimatedDurationMinutes}
-							/>
-						</FormField>
 						<FormField id="edit-category-coins" label="Coins required" required>
 							<TextInput
 								id="edit-category-coins"
 								name="coinsRequired"
-								type="number"
-								min={0}
-								max={postgresIntMax}
-								step={1}
+								inputMode="decimal"
+								pattern="[0-9]{1,10}(\.[0-9]{1,2})?"
 								required
 								defaultValue={sub?.coinsRequired}
 							/>

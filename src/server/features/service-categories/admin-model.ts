@@ -3,7 +3,6 @@ import { z } from "zod";
 export const categoryPageSize = 20;
 export const maxCategoryImageBytes = 5 * 1024 * 1024;
 export const maxCategoryDescriptionLength = 4000;
-export const postgresIntMax = 2_147_483_647;
 
 export const categoryKindSchema = z.enum(["main", "sub"]);
 export type CategoryKind = z.infer<typeof categoryKindSchema>;
@@ -62,12 +61,17 @@ const fields = {
 	id: categoryIdSchema.optional(),
 	action: z.literal("save"),
 };
-const integer = (message: string, min: number) =>
+const decimalAmount = (label: string) =>
 	z
 		.string()
-		.regex(/^\d{1,10}$/, message)
-		.transform(Number)
-		.pipe(z.number().int().min(min, message).max(postgresIntMax, message));
+		.regex(
+			/^\d{1,10}(?:\.\d{1,2})?$/,
+			`Enter a nonnegative ${label} with up to 10 whole digits and 2 decimal places.`,
+		)
+		.transform((value) => {
+			const [whole, fraction = ""] = value.split(".");
+			return `${whole.replace(/^0+(?=\d)/, "")}.${fraction.padEnd(2, "0")}`;
+		});
 
 export const saveMainCategorySchema = z.strictObject({
 	...fields,
@@ -82,24 +86,8 @@ export const saveSubcategorySchema = z.strictObject({
 	categoryId: categoryIdSchema,
 	name: z.string().trim().min(1, "Enter a name.").max(200),
 	description: description.min(1, "Enter a description."),
-	price: z
-		.string()
-		.regex(
-			/^\d{1,10}(?:\.\d{1,2})?$/,
-			"Enter a nonnegative price with up to 10 whole digits and 2 decimal places.",
-		)
-		.transform((price) => {
-			const [whole, cents = ""] = price.split(".");
-			return `${whole.replace(/^0+(?=\d)/, "")}.${cents.padEnd(2, "0")}`;
-		}),
-	estimatedDurationMinutes: integer(
-		"Enter a positive whole number of minutes (up to 2,147,483,647).",
-		1,
-	),
-	coinsRequired: integer(
-		"Enter a nonnegative whole number of coins (up to 2,147,483,647).",
-		0,
-	),
+	price: decimalAmount("price"),
+	coinsRequired: decimalAmount("coin amount"),
 });
 
 export const setCategoryStatusSchema = z.strictObject({
@@ -133,8 +121,7 @@ export interface SubcategoryRow extends CategoryRow {
 	categoryName: string;
 	categoryIsActive: boolean;
 	price: string;
-	estimatedDurationMinutes: number;
-	coinsRequired: number;
+	coinsRequired: string;
 }
 
 export interface CategoryOption {

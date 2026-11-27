@@ -119,12 +119,6 @@ export function getTechnicianNavItems(user: LayoutUser): NavItem[] {
 			to: "/technician/analytics",
 			comingSoon: true,
 		},
-		{
-			id: "profile",
-			label: "Profile",
-			to: "/technician/profile",
-			comingSoon: true,
-		},
 	];
 }
 

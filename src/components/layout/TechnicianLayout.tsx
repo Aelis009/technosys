@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { getTechnicianHome } from "#/features/auth/staffHome";
 import { DashboardShell } from "./DashboardShell";
 import { getTechnicianNavItems, type LayoutUser } from "./navigation";
+import { TechnicianAccountMenu } from "./TechnicianAccountMenu";
 
 interface TechnicianLayoutProps {
 	user: LayoutUser;
@@ -49,6 +50,11 @@ export function TechnicianLayout({
 			onLogout={onLogout}
 			isLoggingOut={isLoggingOut}
 			headerSlot={coinBalance != null ? coinBadge : undefined}
+			accountMenu={
+				homeTo === "/technician/dashboard" ? (
+					<TechnicianAccountMenu user={user} />
+				) : undefined
+			}
 			pageTitle={pageTitle}
 			pageDescription={pageDescription}
 			pageActions={pageActions}
